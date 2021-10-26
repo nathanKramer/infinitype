@@ -1,5 +1,7 @@
 # Infinitype
 
+Delightful typing practice. 
+
 ## Getting Started
 
 1. [Install Elm](https://guide.elm-lang.org/install/elm.html)
