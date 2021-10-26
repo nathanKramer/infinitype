@@ -20,3 +20,9 @@ Install `elm-test`:
 ```
 npm install -g elm-test
 ```
+
+## Links
+
+- [Elm UI](https://package.elm-lang.org/packages/mdgriffith/elm-ui/latest/)
+- [Elm Package Registry](https://package.elm-lang.org/)
+- [Elm Guide](https://guide.elm-lang.org/)
