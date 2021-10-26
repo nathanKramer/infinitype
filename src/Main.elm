@@ -2,11 +2,12 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (Html, div, text)
+import Texts.English1k exposing (words)
 
 
 main : Program () Model Msg
 main =
-    Browser.sandbox { init = Typing "", update = update, view = view }
+    Browser.sandbox { init = Typing words, update = update, view = view }
 
 
 type Model
