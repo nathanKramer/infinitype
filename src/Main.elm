@@ -17,8 +17,10 @@ type alias Flags =
     {}
 
 
-type Model
-    = Typing (List String)
+type alias Model =
+    { typed : List String
+    , typing : List String
+    }
 
 
 type Msg
@@ -29,12 +31,12 @@ initialModel : Model
 initialModel =
     let
         randomWords =
-            Random.list 5 <| Random.uniform "lucky" corpus
+            Random.list 6 <| Random.uniform "lucky" corpus
 
         ( initialList, _ ) =
             Random.step randomWords (Random.initialSeed 1)
     in
-    Typing initialList
+    { typing = List.drop 2 initialList, typed = List.take 2 initialList }
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -81,22 +83,26 @@ renderWords words =
 
 theme =
     { fontColor = El.rgb255 220 220 220
+    , typedFontColor = El.rgb255 140 140 140
     , bgColor = El.rgb255 50 52 55
+    , cursor = El.rgb255 222 222 200
+    , textSize = 50
     }
 
 
 view : Model -> Browser.Document Msg
-view (Typing words) =
+view model =
     { title = "Infinitype"
     , body =
         [ El.layout
             [ Font.color theme.fontColor
-            , Font.size 50
+            , Font.size theme.textSize
             , Background.color theme.bgColor
             ]
             (El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px 1200 ]
-                [ El.row [ El.width El.fill ] [ El.row [] [] ]
-                , El.row [ El.width El.fill, El.alignRight ] <| renderWords words
+                [ El.row [ El.width El.fill, Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderWords model.typed ]
+                , El.el [ Background.color theme.cursor ] (El.text " ")
+                , El.row [ El.width El.fill ] <| renderWords model.typing
                 ]
             )
         ]
