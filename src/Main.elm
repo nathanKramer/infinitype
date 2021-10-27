@@ -42,7 +42,7 @@ initialModel : Model
 initialModel =
     let
         randomWords =
-            Random.list 50 <| Random.uniform "lucky" corpus
+            Random.list 500 <| Random.uniform "lucky" corpus
 
         ( initialList, _ ) =
             Random.step randomWords (Random.initialSeed 1)
