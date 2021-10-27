@@ -87,7 +87,30 @@ theme =
     , bgColor = El.rgb255 50 52 55
     , cursor = El.rgb255 222 222 200
     , textSize = 50
+    , width = 1200
     }
+
+
+renderTypingArea : Model -> Element msg
+renderTypingArea model =
+    let
+        colWidth =
+            (theme.width // 2) - (theme.textSize // 2)
+
+        leftColumn =
+            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderWords model.typed ]
+
+        cursor =
+            El.el [ Background.color theme.cursor ] (El.text " ")
+
+        rightColumn =
+            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderWords model.typing
+    in
+    El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px theme.width ]
+        [ leftColumn
+        , cursor
+        , rightColumn
+        ]
 
 
 view : Model -> Browser.Document Msg
@@ -99,11 +122,6 @@ view model =
             , Font.size theme.textSize
             , Background.color theme.bgColor
             ]
-            (El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px 1200 ]
-                [ El.row [ El.width El.fill, Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderWords model.typed ]
-                , El.el [ Background.color theme.cursor ] (El.text " ")
-                , El.row [ El.width El.fill ] <| renderWords model.typing
-                ]
-            )
+            (renderTypingArea model)
         ]
     }
