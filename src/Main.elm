@@ -1,9 +1,11 @@
 module Main exposing (..)
 
 import Browser
+import Browser.Events exposing (onKeyDown)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
+import Json.Decode as D
 import Random
 import Texts.English1k as Corpus
 
@@ -24,7 +26,7 @@ type alias Model =
 
 
 type Msg
-    = NoneYet
+    = KeyPressed String
 
 
 initialModel : Model
@@ -35,8 +37,14 @@ initialModel =
 
         ( initialList, _ ) =
             Random.step randomWords (Random.initialSeed 1)
+
+        asChars =
+            initialList
+                |> List.intersperse " "
+                |> String.join ""
+                |> String.split ""
     in
-    { typing = List.drop 2 initialList, typed = List.take 2 initialList }
+    { typing = asChars, typed = [] }
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -54,14 +62,56 @@ main =
         }
 
 
+handleKeyPressed : Model -> String -> ( Model, Cmd msg )
+handleKeyPressed model key =
+    let
+        nextChar =
+            List.take 1 model.typing
+
+        nextCharStr =
+            case nextChar of
+                [ x ] ->
+                    x
+
+                _ ->
+                    ""
+
+        typed =
+            List.concat [ model.typed, nextChar ]
+
+        typing =
+            List.drop 1 model.typing
+
+        updatedModel =
+            if key == nextCharStr then
+                { model | typed = typed, typing = typing }
+
+            else
+                model
+    in
+    ( updatedModel, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
-update _ model =
-    ( model, Cmd.none )
+update msg model =
+    case msg of
+        KeyPressed key ->
+            handleKeyPressed model key
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    onKeyDown keyDownListener
+
+
+decodeKey : D.Decoder String
+decodeKey =
+    D.field "key" D.string
+
+
+keyDownListener : D.Decoder Msg
+keyDownListener =
+    D.map (\key -> KeyPressed key) decodeKey
 
 
 renderWord : String -> Element msg
@@ -78,7 +128,6 @@ renderWords : List String -> List (Element msg)
 renderWords words =
     words
         |> List.map renderWord
-        |> List.intersperse space
 
 
 theme =
@@ -87,7 +136,7 @@ theme =
     , bgColor = El.rgb255 50 52 55
     , cursor = El.rgb255 222 222 200
     , textSize = 50
-    , width = 1200
+    , width = 1600
     }
 
 
