@@ -245,8 +245,8 @@ keyUpListener =
     D.map (\key -> KeyReleased key) decodeKey
 
 
-renderWord : KeyPress -> Element msg
-renderWord keyResult =
+renderLetter : KeyPress -> Element msg
+renderLetter keyResult =
     case keyResult of
         Correct key ->
             el [] <| El.text key
@@ -260,10 +260,10 @@ space =
     el [] <| El.text " "
 
 
-renderWords : List KeyPress -> List (Element msg)
-renderWords words =
+renderLetters : List KeyPress -> List (Element msg)
+renderLetters words =
     words
-        |> List.map renderWord
+        |> List.map renderLetter
 
 
 theme =
@@ -284,13 +284,13 @@ renderTypingArea model =
             (theme.width // 2) - (theme.textSize // 2)
 
         leftColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderWords model.typed ]
+            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderLetters model.typed ]
 
         cursor =
             El.el [ Background.color theme.cursor ] (El.text " ")
 
         rightColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderWords (List.map (\key -> Correct key) model.typing)
+            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderLetters (List.map (\key -> Correct key) model.typing)
     in
     El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px theme.width ]
         [ leftColumn
