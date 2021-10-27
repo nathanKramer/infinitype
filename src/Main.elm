@@ -6,6 +6,7 @@ import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
 import Json.Decode as D
+import List.Extra as LE
 import Random
 import Texts.English1k as Corpus
 
@@ -100,32 +101,76 @@ handleKeyPressed model key =
     ( updatedModel, Cmd.none )
 
 
-handleBackspace : Model -> ( Model, Cmd msg )
-handleBackspace model =
+handleBackspace : Model -> Bool -> ( Model, Cmd msg )
+handleBackspace model isSingle =
     let
-        newTyped =
-            List.take (List.length model.typed - 1) model.typed
+        getKey kp =
+            case kp of
+                Correct key ->
+                    key
 
-        amended =
-            List.head (List.reverse model.typed)
+                Incorrect _ key ->
+                    key
 
-        backspace key =
-            { model | typed = newTyped, typing = key :: model.typing }
+        isSpace =
+            \char -> getKey char == " "
 
-        newModel =
-            case amended of
-                Just keyPress ->
-                    case keyPress of
-                        Correct key ->
-                            backspace key
+        isAlphaNum =
+            \char -> List.all Char.isAlphaNum <| String.toList (getKey char)
 
-                        Incorrect _ correctKey ->
-                            backspace correctKey
+        singleBackspace =
+            ( model.typed
+                |> List.take (List.length model.typed - 1)
+            , model.typed
+                |> List.reverse
+                |> List.take 1
+                |> List.map getKey
+            )
 
-                Nothing ->
-                    model
+        superBackspace =
+            let
+                remaining =
+                    model.typed
+                        |> List.reverse
+                        |> LE.dropWhile isSpace
+                        |> LE.dropWhile isAlphaNum
+                        |> List.reverse
+
+                deletedWhitespace =
+                    model.typed
+                        |> List.reverse
+                        |> LE.takeWhile isSpace
+
+                deletedChars =
+                    model.typed
+                        |> List.reverse
+                        |> LE.dropWhile isSpace
+                        |> LE.takeWhile isAlphaNum
+                        |> List.reverse
+
+                deleted =
+                    [ deletedChars, deletedWhitespace ]
+                        |> List.concat
+                        |> List.map getKey
+            in
+            ( remaining
+            , deleted
+            )
+
+        backspaced =
+            if isSingle then
+                singleBackspace
+
+            else
+                superBackspace
+
+        applyBackspace =
+            { model
+                | typed = Tuple.first backspaced
+                , typing = List.concat [ Tuple.second backspaced, model.typing ]
+            }
     in
-    ( newModel, Cmd.none )
+    ( applyBackspace, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
@@ -139,7 +184,16 @@ update msg model =
                 _ ->
                     case key of
                         "Backspace" ->
-                            handleBackspace model
+                            handleBackspace model True
+
+                        "Control" ->
+                            handleBackspace model False
+
+                        "Alt" ->
+                            handleBackspace model False
+
+                        "Super" ->
+                            handleBackspace model False
 
                         _ ->
                             ( model, Cmd.none )
