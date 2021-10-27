@@ -109,15 +109,18 @@ handleBackspace model =
         amended =
             List.head (List.reverse model.typed)
 
+        backspace key =
+            { model | typed = newTyped, typing = key :: model.typing }
+
         newModel =
             case amended of
                 Just keyPress ->
                     case keyPress of
                         Correct key ->
-                            { model | typed = newTyped, typing = key :: model.typing }
+                            backspace key
 
                         Incorrect _ correctKey ->
-                            { model | typed = newTyped, typing = correctKey :: model.typing }
+                            backspace correctKey
 
                 Nothing ->
                     model
