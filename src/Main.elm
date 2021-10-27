@@ -42,7 +42,7 @@ initialModel : Model
 initialModel =
     let
         randomWords =
-            Random.list 6 <| Random.uniform "lucky" corpus
+            Random.list 50 <| Random.uniform "lucky" corpus
 
         ( initialList, _ ) =
             Random.step randomWords (Random.initialSeed 1)
@@ -283,14 +283,20 @@ renderTypingArea model =
         colWidth =
             (theme.width // 2) - (theme.textSize // 2)
 
+        recentlyTyped =
+            model.typed
+                |> List.reverse
+                |> List.take 30
+                |> List.reverse
+
         leftColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderLetters model.typed ]
+            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderLetters recentlyTyped ]
 
         cursor =
             El.el [ Background.color theme.cursor ] (El.text " ")
 
         rightColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderLetters (List.map (\key -> Correct key) model.typing)
+            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderLetters (List.map (\key -> Correct key) (List.take 30 model.typing))
     in
     El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px theme.width ]
         [ leftColumn
