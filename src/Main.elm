@@ -19,8 +19,13 @@ type alias Flags =
     {}
 
 
+type KeyPress
+    = Correct String
+    | Incorrect String
+
+
 type alias Model =
-    { typed : List String
+    { typed : List KeyPress
     , typing : List String
     }
 
@@ -66,28 +71,31 @@ handleKeyPressed : Model -> String -> ( Model, Cmd msg )
 handleKeyPressed model key =
     let
         nextChar =
-            List.take 1 model.typing
-
-        nextCharStr =
-            case nextChar of
+            case List.take 1 model.typing of
                 [ x ] ->
                     x
 
                 _ ->
                     ""
 
+        wasAccurate =
+            key == nextChar
+
+        result =
+            if wasAccurate then
+                Correct key
+
+            else
+                Incorrect key
+
         typed =
-            List.concat [ model.typed, nextChar ]
+            List.concat [ model.typed, [ result ] ]
 
         typing =
             List.drop 1 model.typing
 
         updatedModel =
-            if key == nextCharStr then
-                { model | typed = typed, typing = typing }
-
-            else
-                model
+            { model | typed = typed, typing = typing }
     in
     ( updatedModel, Cmd.none )
 
@@ -96,7 +104,12 @@ update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
         KeyPressed key ->
-            handleKeyPressed model key
+            case String.length key of
+                1 ->
+                    handleKeyPressed model key
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -114,9 +127,14 @@ keyDownListener =
     D.map (\key -> KeyPressed key) decodeKey
 
 
-renderWord : String -> Element msg
-renderWord word =
-    el [] <| El.text word
+renderWord : KeyPress -> Element msg
+renderWord keyResult =
+    case keyResult of
+        Correct key ->
+            el [] <| El.text key
+
+        Incorrect key ->
+            el [ Font.color theme.incorrect ] <| El.text key
 
 
 space : Element msg
@@ -124,16 +142,17 @@ space =
     el [] <| El.text " "
 
 
-renderWords : List String -> List (Element msg)
+renderWords : List KeyPress -> List (Element msg)
 renderWords words =
     words
         |> List.map renderWord
 
 
 theme =
-    { fontColor = El.rgb255 220 220 220
-    , typedFontColor = El.rgb255 140 140 140
-    , bgColor = El.rgb255 50 52 55
+    { fontColor = El.rgb255 170 170 170
+    , typedFontColor = El.rgba255 140 140 140 0.5
+    , bgColor = El.rgb255 17 17 17
+    , incorrect = El.rgb255 239 45 86
     , cursor = El.rgb255 222 222 200
     , textSize = 50
     , width = 1600
@@ -153,7 +172,7 @@ renderTypingArea model =
             El.el [ Background.color theme.cursor ] (El.text " ")
 
         rightColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderWords model.typing
+            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderWords (List.map (\key -> Correct key) model.typing)
     in
     El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px theme.width ]
         [ leftColumn
