@@ -184,7 +184,7 @@ handleBackspace model =
 
 
 modifiers =
-    [ "Control", "Alt", "Command", "Shift" ]
+    [ "Control", "Alt", "Shift" ]
 
 
 handleKeyPressedMsg model key =
