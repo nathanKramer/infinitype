@@ -21,7 +21,7 @@ type alias Flags =
 
 type KeyPress
     = Correct String
-    | Incorrect String
+    | Incorrect String String
 
 
 type alias Model =
@@ -86,7 +86,7 @@ handleKeyPressed model key =
                 Correct key
 
             else
-                Incorrect key
+                Incorrect key nextChar
 
         typed =
             List.concat [ model.typed, [ result ] ]
@@ -133,8 +133,8 @@ renderWord keyResult =
         Correct key ->
             el [] <| El.text key
 
-        Incorrect key ->
-            el [ Font.color theme.incorrect ] <| El.text key
+        Incorrect actual intended ->
+            el [ Font.color theme.incorrect ] <| El.text intended
 
 
 space : Element msg
