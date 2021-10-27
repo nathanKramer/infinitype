@@ -1,13 +1,14 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Events exposing (onKeyDown)
+import Browser.Events exposing (onKeyDown, onKeyUp)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
 import Json.Decode as D
 import List.Extra as LE
 import Random
+import Set exposing (Set)
 import Texts.English1k as Corpus
 
 
@@ -28,11 +29,13 @@ type KeyPress
 type alias Model =
     { typed : List KeyPress
     , typing : List String
+    , heldKeys : Set String
     }
 
 
 type Msg
     = KeyPressed String
+    | KeyReleased String
 
 
 initialModel : Model
@@ -50,7 +53,10 @@ initialModel =
                 |> String.join ""
                 |> String.split ""
     in
-    { typing = asChars, typed = [] }
+    { typing = asChars
+    , typed = []
+    , heldKeys = Set.empty
+    }
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -101,8 +107,8 @@ handleKeyPressed model key =
     ( updatedModel, Cmd.none )
 
 
-handleBackspace : Model -> Bool -> ( Model, Cmd msg )
-handleBackspace model isSingle =
+handleBackspace : Model -> ( Model, Cmd msg )
+handleBackspace model =
     let
         getKey kp =
             case kp of
@@ -111,6 +117,9 @@ handleBackspace model isSingle =
 
                 Incorrect _ key ->
                     key
+
+        isSuperBackspace =
+            List.any (\key -> Set.member key model.heldKeys) [ "Control", "Alt", "Command" ]
 
         isSpace =
             \char -> getKey char == " "
@@ -158,12 +167,13 @@ handleBackspace model isSingle =
             )
 
         backspaced =
-            if isSingle then
-                singleBackspace
-
-            else
+            if isSuperBackspace then
                 superBackspace
 
+            else
+                singleBackspace
+
+        applyBackspace : Model
         applyBackspace =
             { model
                 | typed = Tuple.first backspaced
@@ -173,35 +183,51 @@ handleBackspace model isSingle =
     ( applyBackspace, Cmd.none )
 
 
+modifiers =
+    [ "Control", "Alt", "Command", "Shift" ]
+
+
+handleKeyPressedMsg model key =
+    case String.length key of
+        1 ->
+            handleKeyPressed model key
+
+        _ ->
+            case key of
+                "Backspace" ->
+                    handleBackspace model
+
+                _ ->
+                    let
+                        modifierPressed =
+                            List.member key modifiers
+
+                        updatedModel =
+                            if modifierPressed then
+                                { model | heldKeys = Set.insert key model.heldKeys }
+
+                            else
+                                model
+                    in
+                    ( updatedModel, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
         KeyPressed key ->
-            case String.length key of
-                1 ->
-                    handleKeyPressed model key
+            handleKeyPressedMsg model key
 
-                _ ->
-                    case key of
-                        "Backspace" ->
-                            handleBackspace model True
-
-                        "Control" ->
-                            handleBackspace model False
-
-                        "Alt" ->
-                            handleBackspace model False
-
-                        "Super" ->
-                            handleBackspace model False
-
-                        _ ->
-                            ( model, Cmd.none )
+        KeyReleased key ->
+            ( { model | heldKeys = Set.remove key model.heldKeys }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    onKeyDown keyDownListener
+    Sub.batch
+        [ onKeyDown keyDownListener
+        , onKeyUp keyUpListener
+        ]
 
 
 decodeKey : D.Decoder String
@@ -212,6 +238,11 @@ decodeKey =
 keyDownListener : D.Decoder Msg
 keyDownListener =
     D.map (\key -> KeyPressed key) decodeKey
+
+
+keyUpListener : D.Decoder Msg
+keyUpListener =
+    D.map (\key -> KeyReleased key) decodeKey
 
 
 renderWord : KeyPress -> Element msg
