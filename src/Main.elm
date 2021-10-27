@@ -100,6 +100,31 @@ handleKeyPressed model key =
     ( updatedModel, Cmd.none )
 
 
+handleBackspace : Model -> ( Model, Cmd msg )
+handleBackspace model =
+    let
+        newTyped =
+            List.take (List.length model.typed - 1) model.typed
+
+        amended =
+            List.head (List.reverse model.typed)
+
+        newModel =
+            case amended of
+                Just keyPress ->
+                    case keyPress of
+                        Correct key ->
+                            { model | typed = newTyped, typing = key :: model.typing }
+
+                        Incorrect _ correctKey ->
+                            { model | typed = newTyped, typing = correctKey :: model.typing }
+
+                Nothing ->
+                    model
+    in
+    ( newModel, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
@@ -109,7 +134,12 @@ update msg model =
                     handleKeyPressed model key
 
                 _ ->
-                    ( model, Cmd.none )
+                    case key of
+                        "Backspace" ->
+                            handleBackspace model
+
+                        _ ->
+                            ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
