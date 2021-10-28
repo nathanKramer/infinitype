@@ -326,7 +326,12 @@ renderTypingArea model =
                 [ El.row [ El.alignRight ] <| renderLetters recentlyTyped ]
 
         cursor =
-            El.el [ Background.color theme.cursor ] (El.text " ")
+            El.el
+                [ Background.color theme.cursor
+                , El.width <| El.px 2
+                , El.height <| El.px 60
+                ]
+                (El.text "")
 
         rightColumn =
             El.row [ El.width (El.fill |> El.minimum colWidth) ]
