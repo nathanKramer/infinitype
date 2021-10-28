@@ -253,7 +253,7 @@ renderLetter : KeyPress -> Element msg
 renderLetter keyResult =
     let
         incorrectSizeReduction =
-            3
+            2
     in
     case keyResult of
         Correct key ->
@@ -264,6 +264,7 @@ renderLetter keyResult =
                 [ el [ Font.color theme.incorrect ] <| El.text intended
                 , el
                     [ El.centerX
+                    , Font.color theme.incorrectHintColor
                     , Font.size <| theme.textSize // incorrectSizeReduction
                     ]
                     (El.text <|
@@ -296,6 +297,7 @@ theme =
     , typedFontColor = El.rgba255 140 140 140 0.5
     , bgColor = El.rgb255 17 17 17
     , incorrect = El.rgb255 239 45 86
+    , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
     , textSize = 50
     , width = 1600
