@@ -251,12 +251,33 @@ keyUpListener =
 
 renderLetter : KeyPress -> Element msg
 renderLetter keyResult =
+    let
+        incorrectSizeReduction =
+            3
+    in
     case keyResult of
         Correct key ->
             el [] <| El.text key
 
         Incorrect actual intended ->
-            el [ Font.color theme.incorrect ] <| El.text intended
+            El.column [ El.moveDown <| theme.textSize / (incorrectSizeReduction * 2) ]
+                [ el [ Font.color theme.incorrect ] <| El.text intended
+                , el
+                    [ El.centerX
+                    , Font.size <| theme.textSize // incorrectSizeReduction
+                    ]
+                    (El.text <|
+                        String.map
+                            (\c ->
+                                if c == ' ' then
+                                    '_'
+
+                                else
+                                    c
+                            )
+                            actual
+                    )
+                ]
 
 
 space : Element msg
@@ -294,15 +315,27 @@ renderTypingArea model =
                 |> List.reverse
 
         leftColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth), Font.color theme.typedFontColor ] [ El.row [ El.alignRight ] <| renderLetters recentlyTyped ]
+            El.row
+                [ El.width (El.fill |> El.minimum colWidth)
+                , Font.color theme.typedFontColor
+                ]
+                [ El.row [ El.alignRight ] <| renderLetters recentlyTyped ]
 
         cursor =
             El.el [ Background.color theme.cursor ] (El.text " ")
 
         rightColumn =
-            El.row [ El.width (El.fill |> El.minimum colWidth) ] <| renderLetters (List.map (\key -> Correct key) (List.take 30 model.typing))
+            El.row [ El.width (El.fill |> El.minimum colWidth) ]
+                (renderLetters
+                    (List.map (\key -> Correct key) (List.take 30 model.typing))
+                )
     in
-    El.row [ El.padding 16, El.centerY, El.centerX, El.width <| El.px theme.width ]
+    El.row
+        [ El.padding 16
+        , El.centerY
+        , El.centerX
+        , El.width <| El.px theme.width
+        ]
         [ leftColumn
         , cursor
         , rightColumn
