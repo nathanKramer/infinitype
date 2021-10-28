@@ -252,33 +252,35 @@ keyUpListener =
 renderLetter : KeyPress -> Element msg
 renderLetter keyResult =
     let
-        incorrectSizeReduction =
-            2
+        mistakeHint actual =
+            el
+                [ El.centerX
+                , Font.color theme.incorrectHintColor
+                , Font.size <| theme.textSize // 2
+                ]
+                (El.text <|
+                    String.map
+                        (\c ->
+                            if c == ' ' then
+                                '_'
+
+                            else
+                                c
+                        )
+                        actual
+                )
     in
     case keyResult of
         Correct key ->
             el [] <| El.text key
 
         Incorrect actual intended ->
-            El.column [ El.moveDown <| theme.textSize / (incorrectSizeReduction * 2) ]
-                [ el [ Font.color theme.incorrect ] <| El.text intended
-                , el
-                    [ El.centerX
-                    , Font.color theme.incorrectHintColor
-                    , Font.size <| theme.textSize // incorrectSizeReduction
-                    ]
-                    (El.text <|
-                        String.map
-                            (\c ->
-                                if c == ' ' then
-                                    '_'
-
-                                else
-                                    c
-                            )
-                            actual
-                    )
+            el
+                [ Font.color theme.incorrect
+                , El.below <| mistakeHint actual
                 ]
+            <|
+                El.text intended
 
 
 space : Element msg
