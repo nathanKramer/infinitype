@@ -7,7 +7,7 @@ import Element.Background as Background
 import Element.Font as Font
 import Json.Decode as D
 import List.Extra as LE
-import Random
+import Random exposing (Generator)
 import Set exposing (Set)
 import Texts.English1k as Corpus
 
@@ -36,24 +36,17 @@ type alias Model =
 type Msg
     = KeyPressed String
     | KeyReleased String
+    | RandomWords (List String)
+
+
+randomWords : Int -> Generator (List String)
+randomWords count =
+    Random.list count <| Random.uniform "lucky" corpus
 
 
 initialModel : Model
 initialModel =
-    let
-        randomWords =
-            Random.list 500 <| Random.uniform "lucky" corpus
-
-        ( initialList, _ ) =
-            Random.step randomWords (Random.initialSeed 1)
-
-        asChars =
-            initialList
-                |> List.intersperse " "
-                |> String.join ""
-                |> String.split ""
-    in
-    { typing = asChars
+    { typing = []
     , typed = []
     , heldKeys = Set.empty
     }
@@ -61,7 +54,7 @@ initialModel =
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, Cmd.none )
+    ( initialModel, Random.generate RandomWords (randomWords 500) )
 
 
 main : Program Flags Model Msg
@@ -220,6 +213,17 @@ update msg model =
 
         KeyReleased key ->
             ( { model | heldKeys = Set.remove key model.heldKeys }, Cmd.none )
+
+        RandomWords words ->
+            let
+                wordsAsChars =
+                    List.intersperse " " >> String.join "" >> String.split ""
+            in
+            ( { model
+                | typing = wordsAsChars words
+              }
+            , Cmd.none
+            )
 
 
 subscriptions : Model -> Sub Msg
