@@ -252,6 +252,13 @@ keyUpListener =
 renderLetter : KeyPress -> Element msg
 renderLetter keyResult =
     let
+        translateSpaces c =
+            if c == ' ' then
+                '_'
+
+            else
+                c
+
         mistakeHint actual =
             el
                 [ El.centerX
@@ -260,13 +267,7 @@ renderLetter keyResult =
                 ]
                 (El.text <|
                     String.map
-                        (\c ->
-                            if c == ' ' then
-                                '_'
-
-                            else
-                                c
-                        )
+                        translateSpaces
                         actual
                 )
     in
@@ -280,7 +281,8 @@ renderLetter keyResult =
                 , El.below <| mistakeHint actual
                 ]
             <|
-                El.text intended
+                El.text <|
+                    String.map translateSpaces intended
 
 
 space : Element msg
@@ -340,15 +342,18 @@ renderTypingArea model =
                 )
     in
     El.row
-        [ El.padding 16
-        , El.centerY
-        , El.centerX
-        , El.width <| El.px theme.width
-        ]
+        []
         [ leftColumn
         , cursor
         , rightColumn
         ]
+
+
+renderStats model =
+    el [ El.centerX, El.moveUp 100 ]
+        (El.text
+            ""
+        )
 
 
 view : Model -> Browser.Document Msg
@@ -360,6 +365,14 @@ view model =
             , Font.size theme.textSize
             , Background.color theme.bgColor
             ]
-            (renderTypingArea model)
+            (El.row
+                [ El.padding 16
+                , El.centerY
+                , El.centerX
+                , El.width <| El.px theme.width
+                , El.above <| renderStats model
+                ]
+                [ renderTypingArea model ]
+            )
         ]
     }
