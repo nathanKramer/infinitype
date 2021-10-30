@@ -1,16 +1,17 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp)
-import Dict exposing (Dict)
+import Browser.Dom exposing (Viewport, getViewport)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
 import Element as El exposing (Element, el)
 import Element.Background as Background
-import Element.Font as Font exposing (monospace)
+import Element.Font as Font
 import Html.Attributes as Attr
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
 import Set exposing (Set)
+import Task
 import Texts.English1k as Corpus
 
 
@@ -39,8 +40,7 @@ type alias Model =
     , typing : List KeyPress
     , heldKeys : Set String
     , shim : Float
-    , charSet : Set Char
-    , charWidthCache : Dict Char Float
+    , screenWidth : Int
     }
 
 
@@ -49,6 +49,8 @@ type Msg
     | KeyReleased String
     | RandomWords (List String)
     | Frame Float
+    | NewScreenSize Int Int
+    | GotViewport Viewport
 
 
 randomWords : Int -> Generator (List String)
@@ -62,14 +64,18 @@ initialModel =
     , typed = []
     , heldKeys = Set.empty
     , shim = 0
-    , charSet = charSet
-    , charWidthCache = Dict.empty
+    , screenWidth = 1600
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, Cmd.batch [ Random.generate RandomWords (randomWords 500) ] )
+    ( initialModel
+    , Cmd.batch
+        [ Random.generate RandomWords (randomWords 500)
+        , Task.perform GotViewport Browser.Dom.getViewport
+        ]
+    )
 
 
 main : Program Flags Model Msg
@@ -226,6 +232,38 @@ handleKeyPressedMsg model key =
                     ( updatedModel, Cmd.none )
 
 
+animate : Model -> Float -> ( Model, Cmd msg )
+animate model dt =
+    let
+        typedKeysAheadOfCursor =
+            abs model.shim / themeMonosize
+
+        speed =
+            min 3 typedKeysAheadOfCursor / 2
+
+        incrementalShim =
+            if model.shim < 0 then
+                model.shim + (dt * 2 * speed)
+
+            else if model.shim > 0 then
+                model.shim - (dt * speed)
+
+            else
+                model.shim
+
+        updatedShim =
+            if model.shim > 0 && incrementalShim < 0 then
+                0
+
+            else if model.shim < 0 && incrementalShim > 0 then
+                0
+
+            else
+                incrementalShim
+    in
+    ( { model | shim = updatedShim }, Cmd.none )
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
@@ -247,34 +285,13 @@ update msg model =
             )
 
         Frame dt ->
-            let
-                typedKeysAheadOfCursor =
-                    abs model.shim / themeMonosize
+            animate model dt
 
-                speed =
-                    min 4.0 typedKeysAheadOfCursor / 4
+        NewScreenSize w _ ->
+            ( { model | screenWidth = w }, Cmd.none )
 
-                incrementalShim =
-                    if model.shim < 0 then
-                        model.shim + (dt * speed)
-
-                    else if model.shim > 0 then
-                        model.shim - (dt * speed)
-
-                    else
-                        model.shim
-
-                updatedShim =
-                    if model.shim > 0 && incrementalShim < 0 then
-                        0
-
-                    else if model.shim < 0 && incrementalShim > 0 then
-                        0
-
-                    else
-                        incrementalShim
-            in
-            ( { model | shim = updatedShim }, Cmd.none )
+        GotViewport data ->
+            ( { model | screenWidth = floor <| data.viewport.width }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -283,6 +300,7 @@ subscriptions _ =
         [ onKeyDown keyDownListener
         , onKeyUp keyUpListener
         , onAnimationFrameDelta Frame
+        , onResize (\w h -> NewScreenSize w h)
         ]
 
 
@@ -336,7 +354,6 @@ renderLetter model keyResult =
             el
                 [ El.moveRight <| model.shim
                 , Font.color theme.fontColor
-                , id key
                 ]
             <|
                 El.text key
@@ -374,9 +391,8 @@ theme =
     , incorrect = El.rgb255 239 45 86
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
-    , textSize = 70
+    , textSize = 65
     , monosize = 0.5
-    , width = 1600
     }
 
 
@@ -389,12 +405,15 @@ renderTypingArea : Model -> Element msg
 renderTypingArea model =
     let
         colWidth =
-            (theme.width // 2) - (theme.textSize // 2)
+            (model.screenWidth // 2) - 50
+
+        charCount =
+            (floor <| toFloat model.screenWidth / 2 / themeMonosize) - 2
 
         recentlyTyped =
             model.typed
                 |> List.reverse
-                |> List.take 16
+                |> List.take charCount
                 |> List.reverse
 
         leftColumn =
@@ -411,7 +430,7 @@ renderTypingArea model =
             El.el
                 [ Background.color theme.cursor
                 , El.width <| El.px 2
-                , El.height <| El.px 60
+                , El.height <| El.px theme.textSize
                 ]
                 (El.text "")
 
@@ -419,7 +438,7 @@ renderTypingArea model =
             El.row
                 [ El.width (El.fill |> El.minimum colWidth)
                 ]
-                (renderLetters model (List.take 16 model.typing))
+                (renderLetters model (List.take charCount model.typing))
     in
     El.row
         []
@@ -450,7 +469,7 @@ view model =
                 [ El.padding 16
                 , El.centerY
                 , El.centerX
-                , El.width <| El.px theme.width
+                , El.width <| El.px model.screenWidth
                 , El.above <| renderStats model
                 ]
                 [ renderTypingArea model
