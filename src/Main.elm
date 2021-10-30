@@ -255,11 +255,11 @@ animate model dt =
             abs model.shim / themeMonosize
 
         speed =
-            min 3 typedKeysAheadOfCursor / 2
+            min 4 typedKeysAheadOfCursor / 4
 
         incrementalShim =
             if model.shim < 0 then
-                model.shim + (dt * 2 * speed)
+                model.shim + (dt * 3 * speed)
 
             else if model.shim > 0 then
                 model.shim - (dt * speed)
