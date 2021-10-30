@@ -8,18 +8,19 @@ import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
 import Html.Attributes as Attr
-import Html.Events exposing (onClick, preventDefaultOn)
+import Html.Events exposing (onClick)
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
 import Set exposing (Set)
 import Task
 import Texts.English1k as Corpus
+import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
 
 
 corpus : List String
 corpus =
-    Corpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
+    JapaneseCorpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
 charSet : Set Char
@@ -96,6 +97,9 @@ main =
 handleInputReceived : Model -> String -> ( Model, Cmd msg )
 handleInputReceived model key =
     let
+        trimmed =
+            String.trim key
+
         nextChar =
             case List.take 1 model.typing of
                 [ x ] ->
@@ -105,14 +109,14 @@ handleInputReceived model key =
                     Untyped ""
 
         wasAccurate =
-            key == getKey nextChar
+            trimmed == getKey nextChar
 
         result =
             if wasAccurate then
-                Correct key
+                Correct trimmed
 
             else
-                Incorrect key <| getKey nextChar
+                Incorrect trimmed <| getKey nextChar
 
         typed =
             List.concat [ model.typed, [ result ] ]
@@ -407,7 +411,7 @@ renderLetters model words =
 
 
 themeMonosize =
-    theme.textSize * theme.monosize
+    theme.textSize * monosize
 
 
 theme =
@@ -418,7 +422,6 @@ theme =
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
     , textSize = 50
-    , monosize = 0.5
     }
 
 
