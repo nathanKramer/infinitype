@@ -98,7 +98,11 @@ handleInputReceived : Model -> String -> ( Model, Cmd msg )
 handleInputReceived model key =
     let
         trimmed =
-            String.trim key
+            if key == " " then
+                key
+
+            else
+                String.trim key
 
         nextChar =
             case List.take 1 model.typing of
