@@ -1,12 +1,13 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Dom exposing (Viewport, getViewport)
+import Browser.Dom as Dom exposing (Viewport, getViewport)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
 import Html.Attributes as Attr
+import Html.Events exposing (preventDefaultOn)
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
@@ -17,7 +18,7 @@ import Texts.English1k as Corpus
 
 corpus : List String
 corpus =
-    Corpus.words |> String.replace "\n" " " |> String.split " "
+    Corpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
 charSet : Set Char
@@ -51,6 +52,7 @@ type Msg
     | Frame Float
     | NewScreenSize Int Int
     | GotViewport Viewport
+    | NoOp
 
 
 randomWords : Int -> Generator (List String)
@@ -73,7 +75,8 @@ init _ =
     ( initialModel
     , Cmd.batch
         [ Random.generate RandomWords (randomWords 500)
-        , Task.perform GotViewport Browser.Dom.getViewport
+        , Task.perform GotViewport Dom.getViewport
+        , Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
         ]
     )
 
@@ -204,13 +207,26 @@ handleBackspace model =
 
 
 modifiers =
-    [ "Control", "Alt", "Shift" ]
+    [ "Control", "Alt", "Shift", "Super", "Meta" ]
 
 
+nonTextModifiers =
+    [ "Control", "Super", "Meta" ]
+
+
+preventDefaultKeys =
+    [ "'" ]
+
+
+handleKeyPressedMsg : Model -> String -> ( Model, Cmd msg )
 handleKeyPressedMsg model key =
     case String.length key of
         1 ->
-            handleKeyPressed model key
+            if List.any (\k -> Set.member k model.heldKeys) nonTextModifiers then
+                ( model, Cmd.none )
+
+            else
+                handleKeyPressed model key
 
         _ ->
             case key of
@@ -293,12 +309,14 @@ update msg model =
         GotViewport data ->
             ( { model | screenWidth = floor <| data.viewport.width }, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ onKeyDown keyDownListener
-        , onKeyUp keyUpListener
+        [ onKeyUp keyUpListener
         , onAnimationFrameDelta Frame
         , onResize (\w h -> NewScreenSize w h)
         ]
@@ -309,9 +327,16 @@ decodeKey =
     D.field "key" D.string
 
 
-keyDownListener : D.Decoder Msg
+keyDownListener : D.Decoder ( Msg, Bool )
 keyDownListener =
-    D.map (\key -> KeyPressed key) decodeKey
+    let
+        preventDefault key =
+            List.member key preventDefaultKeys
+
+        parseKey key =
+            ( KeyPressed key, preventDefault key )
+    in
+    D.map parseKey decodeKey
 
 
 keyUpListener : D.Decoder Msg
@@ -464,6 +489,9 @@ view model =
             , Font.color theme.fontColor
             , Font.size theme.textSize
             , Background.color theme.bgColor
+            , El.htmlAttribute <| Attr.tabindex 0
+            , El.htmlAttribute <| preventDefaultOn "keydown" keyDownListener
+            , El.htmlAttribute <| Attr.id "infinitype"
             ]
             (El.row
                 [ El.padding 16
