@@ -391,7 +391,7 @@ theme =
     , incorrect = El.rgb255 239 45 86
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
-    , textSize = 65
+    , textSize = 50
     , monosize = 0.5
     }
 
@@ -408,7 +408,7 @@ renderTypingArea model =
             (model.screenWidth // 2) - 50
 
         charCount =
-            (floor <| toFloat model.screenWidth / 2 / themeMonosize) - 2
+            floor <| toFloat model.screenWidth / 2 / themeMonosize
 
         recentlyTyped =
             model.typed
