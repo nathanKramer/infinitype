@@ -2,13 +2,13 @@ module Main exposing (..)
 
 import Browser
 import Browser.Dom as Dom exposing (Viewport)
-import Browser.Events exposing (onAnimationFrameDelta, onKeyUp, onResize)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
 import Html.Attributes as Attr
-import Html.Events exposing (preventDefaultOn)
+import Html.Events exposing (onClick, preventDefaultOn)
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
@@ -47,12 +47,14 @@ type alias Model =
 
 
 type Msg
-    = KeyPressed String
+    = InputReceived String
+    | KeyDown String
     | KeyReleased String
     | RandomWords (List String)
     | Frame Float
     | NewScreenSize Int Int
     | GotViewport Viewport
+    | GrabFocus
     | NoOp
 
 
@@ -77,7 +79,6 @@ init _ =
     , Cmd.batch
         [ Random.generate RandomWords (randomWords 500)
         , Task.perform GotViewport Dom.getViewport
-        , Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
         ]
     )
 
@@ -92,8 +93,8 @@ main =
         }
 
 
-handleKeyPressed : Model -> String -> ( Model, Cmd msg )
-handleKeyPressed model key =
+handleInputReceived : Model -> String -> ( Model, Cmd msg )
+handleInputReceived model key =
     let
         nextChar =
             case List.take 1 model.typing of
@@ -219,34 +220,29 @@ preventDefaultKeys =
     [ "'" ]
 
 
-handleKeyPressedMsg : Model -> String -> ( Model, Cmd msg )
-handleKeyPressedMsg model key =
-    case String.length key of
-        1 ->
-            if List.any (\k -> Set.member k model.heldKeys) nonTextModifiers then
-                ( model, Cmd.none )
-
-            else
-                handleKeyPressed model key
+handleKeyDown : Model -> String -> ( Model, Cmd msg )
+handleKeyDown model key =
+    case key of
+        "Backspace" ->
+            handleBackspace model
 
         _ ->
-            case key of
-                "Backspace" ->
-                    handleBackspace model
+            let
+                modifierPressed =
+                    List.member key modifiers
 
-                _ ->
-                    let
-                        modifierPressed =
-                            List.member key modifiers
+                updatedModel =
+                    if modifierPressed then
+                        { model | heldKeys = Set.insert key model.heldKeys }
 
-                        updatedModel =
-                            if modifierPressed then
-                                { model | heldKeys = Set.insert key model.heldKeys }
+                    else
+                        model
+            in
+            ( updatedModel, Cmd.none )
 
-                            else
-                                model
-                    in
-                    ( updatedModel, Cmd.none )
+
+
+-- handleKeydownMsg
 
 
 animate : Model -> Float -> ( Model, Cmd msg )
@@ -281,14 +277,17 @@ animate model dt =
     ( { model | shim = updatedShim }, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        KeyPressed key ->
-            handleKeyPressedMsg model key
+        InputReceived key ->
+            handleInputReceived model key
 
         KeyReleased key ->
             ( { model | heldKeys = Set.remove key model.heldKeys }, Cmd.none )
+
+        KeyDown key ->
+            handleKeyDown model key
 
         RandomWords words ->
             let
@@ -310,6 +309,9 @@ update msg model =
         GotViewport data ->
             ( { model | screenWidth = floor <| data.viewport.width }, Cmd.none )
 
+        GrabFocus ->
+            ( model, Task.attempt (\_ -> NoOp) (Dom.focus "infinitype") )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -318,9 +320,14 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ onKeyUp keyUpListener
+        , onKeyDown keyDownListener
         , onAnimationFrameDelta Frame
         , onResize (\w h -> NewScreenSize w h)
         ]
+
+
+changeListener key =
+    InputReceived key
 
 
 decodeKey : D.Decoder String
@@ -328,16 +335,9 @@ decodeKey =
     D.field "key" D.string
 
 
-keyDownListener : D.Decoder ( Msg, Bool )
+keyDownListener : D.Decoder Msg
 keyDownListener =
-    let
-        preventDefault key =
-            List.member key preventDefaultKeys
-
-        parseKey key =
-            ( KeyPressed key, preventDefault key )
-    in
-    D.map parseKey decodeKey
+    D.map KeyDown decodeKey
 
 
 keyUpListener : D.Decoder Msg
@@ -459,10 +459,13 @@ renderTypingArea model =
                 , El.height <| El.px theme.textSize
                 ]
                 (Input.text
-                    [ Input.focusedOnLoad ]
+                    [ Input.focusedOnLoad
+                    , id "infinitype"
+                    , El.htmlAttribute <| Attr.tabindex 0
+                    ]
                     { text = ""
                     , label = Input.labelHidden ""
-                    , onChange = \_ -> NoOp
+                    , onChange = changeListener
                     , placeholder = Nothing
                     }
                 )
@@ -497,9 +500,7 @@ view model =
             , Font.color theme.fontColor
             , Font.size theme.textSize
             , Background.color theme.bgColor
-            , El.htmlAttribute <| Attr.tabindex 0
-            , El.htmlAttribute <| preventDefaultOn "keydown" keyDownListener
-            , El.htmlAttribute <| Attr.id "infinitype"
+            , El.htmlAttribute <| onClick GrabFocus
             ]
             (El.row
                 [ El.padding 16
