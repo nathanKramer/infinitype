@@ -1,11 +1,12 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Dom as Dom exposing (Viewport, getViewport)
-import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
+import Browser.Dom as Dom exposing (Viewport)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyUp, onResize)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
+import Element.Input as Input
 import Html.Attributes as Attr
 import Html.Events exposing (preventDefaultOn)
 import Json.Decode as D
@@ -426,7 +427,7 @@ id =
     Attr.id >> El.htmlAttribute
 
 
-renderTypingArea : Model -> Element msg
+renderTypingArea : Model -> Element Msg
 renderTypingArea model =
     let
         colWidth =
@@ -457,7 +458,14 @@ renderTypingArea model =
                 , El.width <| El.px 2
                 , El.height <| El.px theme.textSize
                 ]
-                (El.text "")
+                (Input.text
+                    [ Input.focusedOnLoad ]
+                    { text = ""
+                    , label = Input.labelHidden ""
+                    , onChange = \_ -> NoOp
+                    , placeholder = Nothing
+                    }
+                )
 
         rightColumn =
             El.row
