@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+elm-live src/Main.elm --open --dir=public --hot -- --output=./public/elm.js

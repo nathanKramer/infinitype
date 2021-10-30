@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <title>Infinitype</title>
+    <link rel="stylesheet" href="./style.css">
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <div id="elm"></div> 
+
+    <script type="text/javascript" src="./elm.js"></script>
+    <script>
+      const app = Elm.Main.init({
+        node: document.getElementById("elm"),
+        flags: {}
+      });
+    </script>
+  </body>
+</html>

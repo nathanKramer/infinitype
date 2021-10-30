@@ -1,0 +1,9 @@
+@font-face {
+    font-family: "infinitype-mono";
+    font-weight: 300; 
+    src: url("/assets/UbuntuMono-Regular.ttf");
+}
+
+body {
+	overflow-x: hidden;
+}
