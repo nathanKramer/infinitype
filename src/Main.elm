@@ -12,6 +12,7 @@ import Html.Events exposing (onClick)
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
+import Regex
 import Set exposing (Set)
 import Task
 import Texts.English1k as Corpus
@@ -112,8 +113,12 @@ handleInputReceived model input =
         matchingChars =
             List.take (String.length input) model.corpus
 
+        isSpace =
+            Maybe.withDefault Regex.never <|
+                Regex.fromString "\\s"
+
         resultForKey ( actual, intended ) =
-            if actual == intended then
+            if actual == intended || (intended == " " && Regex.contains isSpace actual) then
                 Correct actual
 
             else
@@ -466,18 +471,27 @@ renderTypingArea model =
                 ]
 
         cursor =
-            Input.text
-                [ Input.focusedOnLoad
-                , id "infinitype"
-                , El.htmlAttribute <| Attr.tabindex 0
-                , El.width <| El.px 1
-                , Background.color theme.cursor
+            El.row []
+                [ El.el
+                    [ Background.color theme.cursor
+                    , El.width <| El.px 2
+                    , El.height <| El.px theme.textSize
+                    ]
+                    El.none
+                , Input.text
+                    [ Input.focusedOnLoad
+                    , id "infinitype"
+                    , El.htmlAttribute <| Attr.tabindex 0
+                    , El.width <| El.px 1
+                    , Background.color theme.cursor
+                    , El.alpha 0
+                    ]
+                    { text = model.inputValue
+                    , label = Input.labelHidden ""
+                    , onChange = changeListener
+                    , placeholder = Nothing
+                    }
                 ]
-                { text = model.inputValue
-                , label = Input.labelHidden ""
-                , onChange = changeListener
-                , placeholder = Nothing
-                }
 
         rightColumn =
             El.row
