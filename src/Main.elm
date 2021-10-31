@@ -18,6 +18,11 @@ import Texts.English1k as Corpus
 import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
 
 
+
+-- monosize =
+--     0.5
+
+
 corpus : List String
 corpus =
     JapaneseCorpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
@@ -41,6 +46,8 @@ type KeyPress
 type alias Model =
     { typed : List KeyPress
     , typing : List KeyPress
+    , corpus : List String
+    , inputValue : String
     , heldKeys : Set String
     , shim : Float
     , screenWidth : Int
@@ -69,8 +76,10 @@ initialModel =
     { typing = []
     , typed = []
     , heldKeys = Set.empty
+    , inputValue = ""
     , shim = 0
     , screenWidth = 1600
+    , corpus = []
     }
 
 
@@ -95,41 +104,32 @@ main =
 
 
 handleInputReceived : Model -> String -> ( Model, Cmd msg )
-handleInputReceived model key =
+handleInputReceived model input =
     let
-        trimmed =
-            if key == " " then
-                key
+        _ =
+            Debug.log "Input: " input
+
+        matchingChars =
+            List.take (String.length input) model.corpus
+
+        resultForKey ( actual, intended ) =
+            if actual == intended then
+                Correct actual
 
             else
-                String.trim key
+                Incorrect actual <| intended
 
-        nextChar =
-            case List.take 1 model.typing of
-                [ x ] ->
-                    x
-
-                _ ->
-                    Untyped ""
-
-        wasAccurate =
-            trimmed == getKey nextChar
-
-        result =
-            if wasAccurate then
-                Correct trimmed
-
-            else
-                Incorrect trimmed <| getKey nextChar
+        keystrokes =
+            List.map2 Tuple.pair (String.split "" input) matchingChars
 
         typed =
-            List.concat [ model.typed, [ result ] ]
+            List.map resultForKey keystrokes
 
         typing =
-            List.drop 1 model.typing
+            List.map Untyped <| List.drop (String.length input) model.corpus
 
         updatedModel =
-            { model | typed = typed, typing = typing, shim = model.shim + themeMonosize }
+            { model | typed = typed, typing = typing, shim = model.shim + themeMonosize, inputValue = input }
     in
     ( updatedModel, Cmd.none )
 
@@ -234,6 +234,8 @@ handleKeyDown model key =
         "Backspace" ->
             handleBackspace model
 
+        -- " " ->
+        --     handleInputReceived model " "
         _ ->
             let
                 modifierPressed =
@@ -299,11 +301,15 @@ update msg model =
 
         RandomWords words ->
             let
-                wordsAsChars =
+                wordsToLetters =
                     List.intersperse " " >> String.join "" >> String.split ""
+
+                letters =
+                    wordsToLetters words
             in
             ( { model
-                | typing = List.map (\k -> Untyped <| k) <| wordsAsChars words
+                | typing = List.map Untyped <| letters
+                , corpus = letters
               }
             , Cmd.none
             )
@@ -460,22 +466,18 @@ renderTypingArea model =
                 ]
 
         cursor =
-            El.el
-                [ Background.color theme.cursor
-                , El.width <| El.px 2
-                , El.height <| El.px theme.textSize
+            Input.text
+                [ Input.focusedOnLoad
+                , id "infinitype"
+                , El.htmlAttribute <| Attr.tabindex 0
+                , El.width <| El.px 1
+                , Background.color theme.cursor
                 ]
-                (Input.text
-                    [ Input.focusedOnLoad
-                    , id "infinitype"
-                    , El.htmlAttribute <| Attr.tabindex 0
-                    ]
-                    { text = ""
-                    , label = Input.labelHidden ""
-                    , onChange = changeListener
-                    , placeholder = Nothing
-                    }
-                )
+                { text = model.inputValue
+                , label = Input.labelHidden ""
+                , onChange = changeListener
+                , placeholder = Nothing
+                }
 
         rightColumn =
             El.row
