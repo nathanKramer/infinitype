@@ -16,17 +16,19 @@ import Regex
 import Set exposing (Set)
 import Task
 import Texts.English1k as Corpus
-import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
 
 
 
--- monosize =
---     0.5
+-- import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
+
+
+monosize =
+    0.5
 
 
 corpus : List String
 corpus =
-    JapaneseCorpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
+    Corpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
 charSet : Set Char
