@@ -1,19 +1,29 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Dom as Dom exposing (Viewport, getViewport)
+import Browser.Dom as Dom exposing (Viewport)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
+import Element.Input as Input
 import Html.Attributes as Attr
-import Html.Events exposing (preventDefaultOn)
+import Html.Events exposing (onClick)
 import Json.Decode as D
 import List.Extra as LE
 import Random exposing (Generator)
+import Regex
 import Set exposing (Set)
 import Task
 import Texts.English1k as Corpus
+
+
+
+-- import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
+
+
+monosize =
+    0.5
 
 
 corpus : List String
@@ -39,6 +49,8 @@ type KeyPress
 type alias Model =
     { typed : List KeyPress
     , typing : List KeyPress
+    , corpus : List String
+    , inputValue : String
     , heldKeys : Set String
     , shim : Float
     , screenWidth : Int
@@ -46,12 +58,14 @@ type alias Model =
 
 
 type Msg
-    = KeyPressed String
+    = InputReceived String
+    | KeyDown String
     | KeyReleased String
     | RandomWords (List String)
     | Frame Float
     | NewScreenSize Int Int
     | GotViewport Viewport
+    | GrabFocus
     | NoOp
 
 
@@ -65,8 +79,10 @@ initialModel =
     { typing = []
     , typed = []
     , heldKeys = Set.empty
+    , inputValue = ""
     , shim = 0
     , screenWidth = 1600
+    , corpus = []
     }
 
 
@@ -76,7 +92,6 @@ init _ =
     , Cmd.batch
         [ Random.generate RandomWords (randomWords 500)
         , Task.perform GotViewport Dom.getViewport
-        , Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
         ]
     )
 
@@ -91,35 +106,45 @@ main =
         }
 
 
-handleKeyPressed : Model -> String -> ( Model, Cmd msg )
-handleKeyPressed model key =
+isSpace =
+    Maybe.withDefault Regex.never <|
+        Regex.fromString "\\s"
+
+
+handleInputReceived : Model -> String -> ( Model, Cmd msg )
+handleInputReceived model input =
     let
-        nextChar =
-            case List.take 1 model.typing of
-                [ x ] ->
-                    x
+        _ =
+            Debug.log "Input: " input
 
-                _ ->
-                    Untyped ""
+        matchingChars =
+            List.take (String.length input) model.corpus
 
-        wasAccurate =
-            key == getKey nextChar
-
-        result =
-            if wasAccurate then
-                Correct key
+        resultForKey ( actual, intended ) =
+            if actual == intended || (intended == " " && Regex.contains isSpace actual) then
+                Correct actual
 
             else
-                Incorrect key <| getKey nextChar
+                Incorrect actual <| intended
+
+        keystrokes =
+            List.map2 Tuple.pair (String.split "" input) matchingChars
 
         typed =
-            List.concat [ model.typed, [ result ] ]
+            List.map resultForKey keystrokes
 
         typing =
-            List.drop 1 model.typing
+            List.map Untyped <| List.drop (String.length input) model.corpus
+
+        newShim =
+            if String.length input > String.length model.inputValue then
+                model.shim + themeMonosize
+
+            else
+                model.shim
 
         updatedModel =
-            { model | typed = typed, typing = typing, shim = model.shim + themeMonosize }
+            { model | typed = typed, typing = typing, shim = newShim, inputValue = input }
     in
     ( updatedModel, Cmd.none )
 
@@ -143,8 +168,8 @@ handleBackspace model =
         isSuperBackspace =
             List.any (\key -> Set.member key model.heldKeys) [ "Control", "Alt", "Command" ]
 
-        isSpace =
-            \char -> getKey char == " "
+        matchesSpace char =
+            Regex.contains isSpace <| getKey char
 
         isAlphaNum =
             \char -> List.all Char.isAlphaNum <| String.toList (getKey char)
@@ -155,7 +180,7 @@ handleBackspace model =
             , model.typed
                 |> List.reverse
                 |> List.take 1
-                |> List.map (\k -> Untyped <| getKey k)
+                |> List.map (getKey >> Untyped)
             )
 
         superBackspace =
@@ -163,26 +188,26 @@ handleBackspace model =
                 remaining =
                     model.typed
                         |> List.reverse
-                        |> LE.dropWhile isSpace
+                        |> LE.dropWhile matchesSpace
                         |> LE.dropWhile isAlphaNum
                         |> List.reverse
 
                 deletedWhitespace =
                     model.typed
                         |> List.reverse
-                        |> LE.takeWhile isSpace
+                        |> LE.takeWhile matchesSpace
 
                 deletedChars =
                     model.typed
                         |> List.reverse
-                        |> LE.dropWhile isSpace
+                        |> LE.dropWhile matchesSpace
                         |> LE.takeWhile isAlphaNum
                         |> List.reverse
 
                 deleted =
                     [ deletedChars, deletedWhitespace ]
                         |> List.concat
-                        |> List.map (\k -> Untyped <| getKey k)
+                        |> List.map (getKey >> Untyped)
             in
             ( remaining
             , deleted
@@ -218,34 +243,31 @@ preventDefaultKeys =
     [ "'" ]
 
 
-handleKeyPressedMsg : Model -> String -> ( Model, Cmd msg )
-handleKeyPressedMsg model key =
-    case String.length key of
-        1 ->
-            if List.any (\k -> Set.member k model.heldKeys) nonTextModifiers then
-                ( model, Cmd.none )
+handleKeyDown : Model -> String -> ( Model, Cmd msg )
+handleKeyDown model key =
+    case key of
+        "Backspace" ->
+            handleBackspace model
 
-            else
-                handleKeyPressed model key
-
+        -- " " ->
+        --     handleInputReceived model " "
         _ ->
-            case key of
-                "Backspace" ->
-                    handleBackspace model
+            let
+                modifierPressed =
+                    List.member key modifiers
 
-                _ ->
-                    let
-                        modifierPressed =
-                            List.member key modifiers
+                updatedModel =
+                    if modifierPressed then
+                        { model | heldKeys = Set.insert key model.heldKeys }
 
-                        updatedModel =
-                            if modifierPressed then
-                                { model | heldKeys = Set.insert key model.heldKeys }
+                    else
+                        model
+            in
+            ( updatedModel, Cmd.none )
 
-                            else
-                                model
-                    in
-                    ( updatedModel, Cmd.none )
+
+
+-- handleKeydownMsg
 
 
 animate : Model -> Float -> ( Model, Cmd msg )
@@ -259,7 +281,7 @@ animate model dt =
 
         incrementalShim =
             if model.shim < 0 then
-                model.shim + (dt * 3 * speed)
+                model.shim + (dt * speed)
 
             else if model.shim > 0 then
                 model.shim - (dt * speed)
@@ -280,22 +302,33 @@ animate model dt =
     ( { model | shim = updatedShim }, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+refocus =
+    Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        KeyPressed key ->
-            handleKeyPressedMsg model key
+        InputReceived key ->
+            handleInputReceived model key
 
         KeyReleased key ->
             ( { model | heldKeys = Set.remove key model.heldKeys }, Cmd.none )
 
+        KeyDown key ->
+            handleKeyDown model key
+
         RandomWords words ->
             let
-                wordsAsChars =
+                wordsToLetters =
                     List.intersperse " " >> String.join "" >> String.split ""
+
+                letters =
+                    wordsToLetters words
             in
             ( { model
-                | typing = List.map (\k -> Untyped <| k) <| wordsAsChars words
+                | typing = List.map Untyped <| letters
+                , corpus = letters
               }
             , Cmd.none
             )
@@ -307,7 +340,10 @@ update msg model =
             ( { model | screenWidth = w }, Cmd.none )
 
         GotViewport data ->
-            ( { model | screenWidth = floor <| data.viewport.width }, Cmd.none )
+            ( { model | screenWidth = floor <| data.viewport.width }, refocus )
+
+        GrabFocus ->
+            ( model, refocus )
 
         NoOp ->
             ( model, Cmd.none )
@@ -317,9 +353,14 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ onKeyUp keyUpListener
+        , onKeyDown keyDownListener
         , onAnimationFrameDelta Frame
         , onResize (\w h -> NewScreenSize w h)
         ]
+
+
+changeListener key =
+    InputReceived key
 
 
 decodeKey : D.Decoder String
@@ -327,16 +368,9 @@ decodeKey =
     D.field "key" D.string
 
 
-keyDownListener : D.Decoder ( Msg, Bool )
+keyDownListener : D.Decoder Msg
 keyDownListener =
-    let
-        preventDefault key =
-            List.member key preventDefaultKeys
-
-        parseKey key =
-            ( KeyPressed key, preventDefault key )
-    in
-    D.map parseKey decodeKey
+    D.map KeyDown decodeKey
 
 
 keyUpListener : D.Decoder Msg
@@ -406,7 +440,7 @@ renderLetters model words =
 
 
 themeMonosize =
-    theme.textSize * theme.monosize
+    theme.textSize * monosize
 
 
 theme =
@@ -417,7 +451,6 @@ theme =
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
     , textSize = 50
-    , monosize = 0.5
     }
 
 
@@ -426,11 +459,11 @@ id =
     Attr.id >> El.htmlAttribute
 
 
-renderTypingArea : Model -> Element msg
+renderTypingArea : Model -> Element Msg
 renderTypingArea model =
     let
         colWidth =
-            (model.screenWidth // 2) - 50
+            (model.screenWidth // 2) - theme.textSize
 
         charCount =
             floor <| toFloat model.screenWidth / 2 / themeMonosize
@@ -452,12 +485,26 @@ renderTypingArea model =
                 ]
 
         cursor =
-            El.el
-                [ Background.color theme.cursor
-                , El.width <| El.px 2
-                , El.height <| El.px theme.textSize
+            El.row []
+                [ El.el
+                    [ Background.color theme.cursor
+                    , El.width <| El.px 2
+                    , El.height <| El.px theme.textSize
+                    ]
+                    El.none
+                , Input.text
+                    [ Input.focusedOnLoad
+                    , id "infinitype"
+                    , El.htmlAttribute <| Attr.tabindex 0
+                    , El.width <| El.px 1
+                    , El.alpha 0
+                    ]
+                    { text = model.inputValue
+                    , label = Input.labelHidden ""
+                    , onChange = changeListener
+                    , placeholder = Nothing
+                    }
                 ]
-                (El.text "")
 
         rightColumn =
             El.row
@@ -489,9 +536,7 @@ view model =
             , Font.color theme.fontColor
             , Font.size theme.textSize
             , Background.color theme.bgColor
-            , El.htmlAttribute <| Attr.tabindex 0
-            , El.htmlAttribute <| preventDefaultOn "keydown" keyDownListener
-            , El.htmlAttribute <| Attr.id "infinitype"
+            , El.htmlAttribute <| onClick GrabFocus
             ]
             (El.row
                 [ El.padding 16

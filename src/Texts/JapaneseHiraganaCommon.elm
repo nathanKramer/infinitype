@@ -1,4 +1,4 @@
-module Texts.English1k exposing (words)
+module Texts.JapaneseHiraganaCommon exposing (monosize, words)
 
 
 words : String
@@ -112,7 +112,6 @@ words =
 かえる
 がま
 しし
-キリン
 ぞう
 とり
 にわとり
@@ -135,7 +134,6 @@ words =
 せみ
 かい
 かいがら
-トカゲ
 へび
 くま
 くさ
@@ -603,3 +601,7 @@ words =
 まで
 も
 """
+
+
+monosize =
+    1.0
