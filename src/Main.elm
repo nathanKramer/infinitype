@@ -497,7 +497,6 @@ renderTypingArea model =
                     , id "infinitype"
                     , El.htmlAttribute <| Attr.tabindex 0
                     , El.width <| El.px 1
-                    , Background.color theme.cursor
                     , El.alpha 0
                     ]
                     { text = model.inputValue
