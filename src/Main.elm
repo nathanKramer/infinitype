@@ -104,6 +104,11 @@ main =
         }
 
 
+isSpace =
+    Maybe.withDefault Regex.never <|
+        Regex.fromString "\\s"
+
+
 handleInputReceived : Model -> String -> ( Model, Cmd msg )
 handleInputReceived model input =
     let
@@ -112,10 +117,6 @@ handleInputReceived model input =
 
         matchingChars =
             List.take (String.length input) model.corpus
-
-        isSpace =
-            Maybe.withDefault Regex.never <|
-                Regex.fromString "\\s"
 
         resultForKey ( actual, intended ) =
             if actual == intended || (intended == " " && Regex.contains isSpace actual) then
@@ -133,8 +134,15 @@ handleInputReceived model input =
         typing =
             List.map Untyped <| List.drop (String.length input) model.corpus
 
+        newShim =
+            if String.length input > String.length model.inputValue then
+                model.shim + themeMonosize
+
+            else
+                model.shim
+
         updatedModel =
-            { model | typed = typed, typing = typing, shim = model.shim + themeMonosize, inputValue = input }
+            { model | typed = typed, typing = typing, shim = newShim, inputValue = input }
     in
     ( updatedModel, Cmd.none )
 
@@ -158,8 +166,8 @@ handleBackspace model =
         isSuperBackspace =
             List.any (\key -> Set.member key model.heldKeys) [ "Control", "Alt", "Command" ]
 
-        isSpace =
-            \char -> getKey char == " "
+        matchesSpace char =
+            Regex.contains isSpace <| getKey char
 
         isAlphaNum =
             \char -> List.all Char.isAlphaNum <| String.toList (getKey char)
@@ -170,7 +178,7 @@ handleBackspace model =
             , model.typed
                 |> List.reverse
                 |> List.take 1
-                |> List.map (\k -> Untyped <| getKey k)
+                |> List.map (getKey >> Untyped)
             )
 
         superBackspace =
@@ -178,26 +186,26 @@ handleBackspace model =
                 remaining =
                     model.typed
                         |> List.reverse
-                        |> LE.dropWhile isSpace
+                        |> LE.dropWhile matchesSpace
                         |> LE.dropWhile isAlphaNum
                         |> List.reverse
 
                 deletedWhitespace =
                     model.typed
                         |> List.reverse
-                        |> LE.takeWhile isSpace
+                        |> LE.takeWhile matchesSpace
 
                 deletedChars =
                     model.typed
                         |> List.reverse
-                        |> LE.dropWhile isSpace
+                        |> LE.dropWhile matchesSpace
                         |> LE.takeWhile isAlphaNum
                         |> List.reverse
 
                 deleted =
                     [ deletedChars, deletedWhitespace ]
                         |> List.concat
-                        |> List.map (\k -> Untyped <| getKey k)
+                        |> List.map (getKey >> Untyped)
             in
             ( remaining
             , deleted
@@ -271,7 +279,7 @@ animate model dt =
 
         incrementalShim =
             if model.shim < 0 then
-                model.shim + (dt * 3 * speed)
+                model.shim + (dt * speed)
 
             else if model.shim > 0 then
                 model.shim - (dt * speed)
@@ -290,6 +298,10 @@ animate model dt =
                 incrementalShim
     in
     ( { model | shim = updatedShim }, Cmd.none )
+
+
+refocus =
+    Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -326,10 +338,10 @@ update msg model =
             ( { model | screenWidth = w }, Cmd.none )
 
         GotViewport data ->
-            ( { model | screenWidth = floor <| data.viewport.width }, Cmd.none )
+            ( { model | screenWidth = floor <| data.viewport.width }, refocus )
 
         GrabFocus ->
-            ( model, Task.attempt (\_ -> NoOp) (Dom.focus "infinitype") )
+            ( model, refocus )
 
         NoOp ->
             ( model, Cmd.none )
@@ -449,7 +461,7 @@ renderTypingArea : Model -> Element Msg
 renderTypingArea model =
     let
         colWidth =
-            (model.screenWidth // 2) - 50
+            (model.screenWidth // 2) - theme.textSize
 
         charCount =
             floor <| toFloat model.screenWidth / 2 / themeMonosize
