@@ -560,24 +560,30 @@ renderWpm model =
             typedEntries / 5.0
 
         accuracy =
-            if time == 0 then
-                0
-
-            else
-                floor ((typedEntries - mistakes) / typedEntries * 100)
+            (typedEntries - mistakes) / typedEntries * 100
 
         wpm =
-            if time == 0.0 then
+            (words - mistakes) / minutes
+
+        rejectNaN f =
+            if isNaN f then
                 0.0
 
             else
-                (words - mistakes) / minutes
+                f
+
+        floorStr f =
+            f
+                |> rejectNaN
+                |> floor
+                |> S.fromInt
 
         wpmString =
-            "WPM: " ++ (S.fromInt <| floor wpm)
+            "WPM: "
+                ++ floorStr wpm
 
         accuracyString =
-            "Accuracy: " ++ S.fromInt accuracy ++ "%"
+            "Accuracy: " ++ floorStr accuracy ++ "%"
 
         elapsedTimeString =
             "Time: " ++ (S.fromInt <| floor time) ++ "s"
