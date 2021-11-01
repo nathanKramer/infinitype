@@ -14,6 +14,7 @@ import List.Extra as LE
 import Random exposing (Generator)
 import Regex
 import Set exposing (Set)
+import String as S
 import Task
 import Texts.English1k as Corpus
 
@@ -54,6 +55,8 @@ type alias Model =
     , heldKeys : Set String
     , shim : Float
     , screenWidth : Int
+    , screenHeight : Int
+    , timeElapsed : Float
     }
 
 
@@ -82,7 +85,9 @@ initialModel =
     , inputValue = ""
     , shim = 0
     , screenWidth = 1600
+    , screenHeight = 800
     , corpus = []
+    , timeElapsed = 0.0
     }
 
 
@@ -298,8 +303,15 @@ animate model dt =
 
             else
                 incrementalShim
+
+        updatedTimeElapsed =
+            if String.length model.inputValue > 0 then
+                model.timeElapsed + dt
+
+            else
+                model.timeElapsed
     in
-    ( { model | shim = updatedShim }, Cmd.none )
+    ( { model | shim = updatedShim, timeElapsed = updatedTimeElapsed }, Cmd.none )
 
 
 refocus =
@@ -340,7 +352,7 @@ update msg model =
             ( { model | screenWidth = w }, Cmd.none )
 
         GotViewport data ->
-            ( { model | screenWidth = floor <| data.viewport.width }, refocus )
+            ( { model | screenWidth = floor <| data.viewport.width, screenHeight = floor <| data.viewport.height }, refocus )
 
         GrabFocus ->
             ( model, refocus )
@@ -450,6 +462,7 @@ theme =
     , incorrect = El.rgb255 239 45 86
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
+    , statsColor = El.rgba255 140 140 140 0.3
     , textSize = 50
     }
 
@@ -520,10 +533,71 @@ renderTypingArea model =
         ]
 
 
+renderWpm : Model -> Element msg
+renderWpm model =
+    let
+        time =
+            model.timeElapsed / 1000
+
+        typedEntries =
+            toFloat <| String.length model.inputValue
+
+        minutes =
+            time / 60.0
+
+        isMistake key =
+            case key of
+                Incorrect _ _ ->
+                    True
+
+                _ ->
+                    False
+
+        mistakes =
+            toFloat (List.length <| List.filter isMistake model.typed)
+
+        words =
+            typedEntries / 5.0
+
+        accuracy =
+            if time == 0 then
+                0
+
+            else
+                floor ((typedEntries - mistakes) / typedEntries * 100)
+
+        wpm =
+            if time == 0.0 then
+                0.0
+
+            else
+                (words - mistakes) / minutes
+
+        wpmString =
+            "WPM: " ++ (S.fromInt <| floor wpm)
+
+        accuracyString =
+            "Accuracy: " ++ S.fromInt accuracy ++ "%"
+
+        elapsedTimeString =
+            "Time: " ++ (S.fromInt <| floor time) ++ "s"
+
+        output =
+            [ wpmString
+            , accuracyString
+            , elapsedTimeString
+            ]
+    in
+    El.text <| String.join ", " output
+
+
+renderStats : Model -> Element msg
 renderStats model =
-    el [ El.centerX, El.moveUp 100 ]
-        (El.text
-            ""
+    el [ El.centerX, El.moveUp <| toFloat model.screenHeight / 4 ]
+        (El.row [ Font.color theme.statsColor, Font.size <| floor (theme.textSize * 0.75) ]
+            [ -- El.text (S.fromInt (floor model.timeElapsed // 1000) ++ "s")
+              renderWpm model
+            ]
         )
 
 
