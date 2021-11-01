@@ -498,7 +498,7 @@ renderTypingArea model =
                 ]
 
         cursor =
-            El.row []
+            El.row [ El.centerY ]
                 [ El.el
                     [ Background.color theme.cursor
                     , El.width <| El.px 2
@@ -510,6 +510,7 @@ renderTypingArea model =
                     , id "infinitype"
                     , El.htmlAttribute <| Attr.tabindex 0
                     , El.width <| El.px 1
+                    , El.height <| El.px theme.textSize
                     , El.alpha 0
                     ]
                     { text = model.inputValue
@@ -599,7 +600,11 @@ renderWpm model =
 
 renderStats : Model -> Element msg
 renderStats model =
-    el [ El.centerX, El.moveUp <| toFloat model.screenHeight / 4 ]
+    let
+        adjustment =
+            (toFloat model.screenHeight / 4) - theme.textSize
+    in
+    el [ El.centerX, El.moveUp <| adjustment ]
         (El.row [ Font.color theme.statsColor, Font.size <| floor (theme.textSize * 0.75) ]
             [ renderWpm model
             ]
@@ -618,8 +623,7 @@ view model =
             , El.htmlAttribute <| onClick GrabFocus
             ]
             (El.row
-                [ El.padding 16
-                , El.centerY
+                [ El.centerY
                 , El.centerX
                 , El.width <| El.px model.screenWidth
                 , El.above <| renderStats model
