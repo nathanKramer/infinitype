@@ -601,8 +601,7 @@ renderStats : Model -> Element msg
 renderStats model =
     el [ El.centerX, El.moveUp <| toFloat model.screenHeight / 4 ]
         (El.row [ Font.color theme.statsColor, Font.size <| floor (theme.textSize * 0.75) ]
-            [ -- El.text (S.fromInt (floor model.timeElapsed // 1000) ++ "s")
-              renderWpm model
+            [ renderWpm model
             ]
         )
 
