@@ -130,6 +130,16 @@ init _ =
     )
 
 
+reset =
+    ( initialModel
+    , Cmd.batch
+        [ Random.generate RandomWords (randomWords 500)
+        , Task.perform GotViewport Dom.getViewport
+        , refocus
+        ]
+    )
+
+
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -217,13 +227,7 @@ handleKeyDown key model =
             togglePause model
 
         "Escape" ->
-            ( initialModel
-            , Cmd.batch
-                [ Random.generate RandomWords (randomWords 500)
-                , Task.perform GotViewport Dom.getViewport
-                , refocus
-                ]
-            )
+            reset
 
         _ ->
             ( model, Cmd.none )
