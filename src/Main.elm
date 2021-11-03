@@ -141,12 +141,11 @@ handleInputReceived model input =
         typing =
             List.map Untyped <| List.drop (String.length input) model.corpus
 
-        newShim =
-            if String.length input > String.length model.inputValue then
-                model.shim + themeMonosize
+        difference =
+            String.length input - String.length model.inputValue
 
-            else
-                model.shim
+        newShim =
+            model.shim + (themeMonosize * toFloat difference)
 
         updatedModel =
             { model | typed = typed, typing = typing, shim = newShim, inputValue = input }
@@ -254,8 +253,6 @@ handleKeyDown model key =
         "Backspace" ->
             handleBackspace model
 
-        -- " " ->
-        --     handleInputReceived model " "
         _ ->
             let
                 modifierPressed =
@@ -269,10 +266,6 @@ handleKeyDown model key =
                         model
             in
             ( updatedModel, Cmd.none )
-
-
-
--- handleKeydownMsg
 
 
 animate : Model -> Float -> ( Model, Cmd msg )
@@ -364,9 +357,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ onKeyUp keyUpListener
-        , onKeyDown keyDownListener
-        , onAnimationFrameDelta Frame
+        [ onAnimationFrameDelta Frame
         , onResize (\w h -> NewScreenSize w h)
         ]
 
