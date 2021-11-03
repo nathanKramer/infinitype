@@ -508,7 +508,7 @@ renderWpm appData =
             appData.timeElapsed / 1000
 
         rollingPeriod =
-            15000.0
+            10000.0
 
         isAfter t key =
             case key of
