@@ -10,7 +10,6 @@ import Element.Input as Input
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Json.Decode as D
-import List.Extra as LE
 import Random exposing (Generator)
 import Regex
 import Set exposing (Set)
@@ -42,8 +41,8 @@ type alias Flags =
 
 
 type KeyPress
-    = Correct String
-    | Incorrect String String
+    = Correct String Float
+    | Incorrect String String Float
     | Untyped String
 
 
@@ -154,16 +153,27 @@ handleInputReceived input appData =
 
         resultForKey ( actual, intended ) =
             if actual == intended || (intended == " " && Regex.contains isSpace actual) then
-                Correct actual
+                Correct actual appData.timeElapsed
 
             else
-                Incorrect actual <| intended
+                Incorrect actual intended appData.timeElapsed
 
         keystrokes =
             List.map2 Tuple.pair (String.split "" input) matchingChars
 
         typed =
-            List.map resultForKey keystrokes
+            if String.length input < List.length appData.typed then
+                List.take (String.length input) appData.typed
+
+            else
+                let
+                    newChars =
+                        List.drop (List.length appData.typed) keystrokes
+
+                    mappedChars =
+                        List.map resultForKey newChars
+                in
+                List.concat [ appData.typed, mappedChars ]
 
         typing =
             List.map Untyped <| List.drop (String.length input) appData.corpus
@@ -180,26 +190,14 @@ handleInputReceived input appData =
 getKey : KeyPress -> String
 getKey kp =
     case kp of
-        Correct key ->
+        Correct key _ ->
             key
 
-        Incorrect _ key ->
+        Incorrect _ key _ ->
             key
 
         Untyped key ->
             key
-
-
-modifiers =
-    [ "Control", "Alt", "Shift", "Super", "Meta" ]
-
-
-nonTextModifiers =
-    [ "Control", "Super", "Meta" ]
-
-
-preventDefaultKeys =
-    [ "'" ]
 
 
 togglePause : Model -> ( Model, Cmd Msg )
@@ -219,18 +217,7 @@ handleKeyDown key model =
             togglePause model
 
         _ ->
-            let
-                modifierPressed =
-                    List.member key modifiers
-
-                updateFn appData =
-                    if modifierPressed then
-                        { appData | heldKeys = Set.insert key appData.heldKeys }
-
-                    else
-                        appData
-            in
-            model |> mapModel updateFn |> noOpUpdate
+            ( model, Cmd.none )
 
 
 animate : Float -> AppData -> AppData
@@ -390,7 +377,7 @@ renderLetter keyResult appData =
                 )
     in
     case keyResult of
-        Correct key ->
+        Correct key _ ->
             el
                 [ El.moveRight <| appData.shim
                 , Font.color theme.typedFontColor
@@ -406,7 +393,7 @@ renderLetter keyResult appData =
             <|
                 El.text key
 
-        Incorrect actual intended ->
+        Incorrect actual intended _ ->
             el
                 [ El.moveRight <| appData.shim
                 , Font.color theme.incorrect
@@ -520,22 +507,46 @@ renderWpm appData =
         time =
             appData.timeElapsed / 1000
 
+        rollingPeriod =
+            15000.0
+
+        isAfter t key =
+            case key of
+                Untyped _ ->
+                    False
+
+                Correct _ pressTime ->
+                    pressTime > t
+
+                Incorrect _ _ pressTime ->
+                    pressTime > t
+
+        recentKeyStrokes =
+            List.filter (isAfter (appData.timeElapsed - rollingPeriod)) appData.typed
+
         typedEntries =
-            toFloat <| String.length appData.inputValue
+            toFloat <| List.length recentKeyStrokes
+
+        rollingPeriodSecs =
+            rollingPeriod / 1000.0
 
         minutes =
-            time / 60.0
+            if time < rollingPeriodSecs then
+                time / 60.0
+
+            else
+                rollingPeriodSecs / 60.0
 
         isMistake key =
             case key of
-                Incorrect _ _ ->
+                Incorrect _ _ _ ->
                     True
 
                 _ ->
                     False
 
         mistakes =
-            toFloat (List.length <| List.filter isMistake appData.typed)
+            toFloat (List.length <| List.filter isMistake recentKeyStrokes)
 
         words =
             typedEntries / 5.0
