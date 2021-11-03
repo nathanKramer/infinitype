@@ -216,6 +216,15 @@ handleKeyDown key model =
         "Enter" ->
             togglePause model
 
+        "Escape" ->
+            ( initialModel
+            , Cmd.batch
+                [ Random.generate RandomWords (randomWords 500)
+                , Task.perform GotViewport Dom.getViewport
+                , refocus
+                ]
+            )
+
         _ ->
             ( model, Cmd.none )
 
