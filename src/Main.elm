@@ -47,7 +47,7 @@ type KeyPress
     | Untyped String
 
 
-type alias Model =
+type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
     , corpus : List String
@@ -58,6 +58,11 @@ type alias Model =
     , screenHeight : Int
     , timeElapsed : Float
     }
+
+
+type Model
+    = Typing AppData
+    | Paused AppData
 
 
 type Msg
@@ -79,16 +84,41 @@ randomWords count =
 
 initialModel : Model
 initialModel =
-    { typing = []
-    , typed = []
-    , heldKeys = Set.empty
-    , inputValue = ""
-    , shim = 0
-    , screenWidth = 1600
-    , screenHeight = 800
-    , corpus = []
-    , timeElapsed = 0.0
-    }
+    Typing
+        { typing = []
+        , typed = []
+        , heldKeys = Set.empty
+        , inputValue = ""
+        , shim = 0
+        , screenWidth = 1600
+        , screenHeight = 800
+        , corpus = []
+        , timeElapsed = 0.0
+        }
+
+
+mapModel : (AppData -> AppData) -> Model -> Model
+mapModel fn model =
+    case model of
+        Typing appData ->
+            Typing <| fn appData
+
+        Paused appData ->
+            Paused <| fn appData
+
+
+unwrapModel : Model -> AppData
+unwrapModel model =
+    case model of
+        Typing appData ->
+            appData
+
+        Paused appData ->
+            appData
+
+
+noOpUpdate newModel =
+    ( newModel, Cmd.none )
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -116,14 +146,11 @@ isSpace =
         Regex.fromString "\\s"
 
 
-handleInputReceived : Model -> String -> ( Model, Cmd msg )
-handleInputReceived model input =
+handleInputReceived : String -> AppData -> AppData
+handleInputReceived input appData =
     let
-        _ =
-            Debug.log "Input: " input
-
         matchingChars =
-            List.take (String.length input) model.corpus
+            List.take (String.length input) appData.corpus
 
         resultForKey ( actual, intended ) =
             if actual == intended || (intended == " " && Regex.contains isSpace actual) then
@@ -139,18 +166,15 @@ handleInputReceived model input =
             List.map resultForKey keystrokes
 
         typing =
-            List.map Untyped <| List.drop (String.length input) model.corpus
+            List.map Untyped <| List.drop (String.length input) appData.corpus
 
         difference =
-            String.length input - String.length model.inputValue
+            String.length input - String.length appData.inputValue
 
         newShim =
-            model.shim + (themeMonosize * toFloat difference)
-
-        updatedModel =
-            { model | typed = typed, typing = typing, shim = newShim, inputValue = input }
+            appData.shim + (themeMonosize * toFloat difference)
     in
-    ( updatedModel, Cmd.none )
+    { appData | typed = typed, typing = typing, shim = newShim, inputValue = input }
 
 
 getKey : KeyPress -> String
@@ -166,75 +190,6 @@ getKey kp =
             key
 
 
-handleBackspace : Model -> ( Model, Cmd msg )
-handleBackspace model =
-    let
-        isSuperBackspace =
-            List.any (\key -> Set.member key model.heldKeys) [ "Control", "Alt", "Command" ]
-
-        matchesSpace char =
-            Regex.contains isSpace <| getKey char
-
-        isAlphaNum =
-            \char -> List.all Char.isAlphaNum <| String.toList (getKey char)
-
-        singleBackspace =
-            ( model.typed
-                |> List.take (List.length model.typed - 1)
-            , model.typed
-                |> List.reverse
-                |> List.take 1
-                |> List.map (getKey >> Untyped)
-            )
-
-        superBackspace =
-            let
-                remaining =
-                    model.typed
-                        |> List.reverse
-                        |> LE.dropWhile matchesSpace
-                        |> LE.dropWhile isAlphaNum
-                        |> List.reverse
-
-                deletedWhitespace =
-                    model.typed
-                        |> List.reverse
-                        |> LE.takeWhile matchesSpace
-
-                deletedChars =
-                    model.typed
-                        |> List.reverse
-                        |> LE.dropWhile matchesSpace
-                        |> LE.takeWhile isAlphaNum
-                        |> List.reverse
-
-                deleted =
-                    [ deletedChars, deletedWhitespace ]
-                        |> List.concat
-                        |> List.map (getKey >> Untyped)
-            in
-            ( remaining
-            , deleted
-            )
-
-        backspaced =
-            if isSuperBackspace then
-                superBackspace
-
-            else
-                singleBackspace
-
-        applyBackspace : Model
-        applyBackspace =
-            { model
-                | typed = Tuple.first backspaced
-                , typing = List.concat [ Tuple.second backspaced, model.typing ]
-                , shim = model.shim - (toFloat (List.length <| Tuple.second backspaced) * themeMonosize)
-            }
-    in
-    ( applyBackspace, Cmd.none )
-
-
 modifiers =
     [ "Control", "Alt", "Shift", "Super", "Meta" ]
 
@@ -247,64 +202,74 @@ preventDefaultKeys =
     [ "'" ]
 
 
-handleKeyDown : Model -> String -> ( Model, Cmd msg )
-handleKeyDown model key =
+togglePause : Model -> ( Model, Cmd msg )
+togglePause model =
+    case model of
+        Typing appData ->
+            ( Paused appData, Cmd.none )
+
+        Paused appData ->
+            ( Typing appData, Cmd.none )
+
+
+handleKeyDown : String -> Model -> ( Model, Cmd msg )
+handleKeyDown key model =
     case key of
-        "Backspace" ->
-            handleBackspace model
+        "Enter" ->
+            togglePause model
 
         _ ->
             let
                 modifierPressed =
                     List.member key modifiers
 
-                updatedModel =
+                updateFn appData =
                     if modifierPressed then
-                        { model | heldKeys = Set.insert key model.heldKeys }
+                        { appData | heldKeys = Set.insert key appData.heldKeys }
 
                     else
-                        model
+                        appData
             in
-            ( updatedModel, Cmd.none )
+            model |> mapModel updateFn |> noOpUpdate
 
 
-animate : Model -> Float -> ( Model, Cmd msg )
-animate model dt =
+animate : Float -> AppData -> AppData
+animate dt appData =
     let
         typedKeysAheadOfCursor =
-            abs model.shim / themeMonosize
+            abs appData.shim / themeMonosize
 
         speed =
             min 4 typedKeysAheadOfCursor / 4
 
         incrementalShim =
-            if model.shim < 0 then
-                model.shim + (dt * speed)
+            if appData.shim < 0 then
+                appData.shim + (dt * speed)
 
-            else if model.shim > 0 then
-                model.shim - (dt * speed)
+            else if appData.shim > 0 then
+                appData.shim - (dt * speed)
 
             else
-                model.shim
+                appData.shim
 
         updatedShim =
-            if model.shim > 0 && incrementalShim < 0 then
+            if appData.shim > 0 && incrementalShim < 0 then
                 0
 
-            else if model.shim < 0 && incrementalShim > 0 then
+            else if appData.shim < 0 && incrementalShim > 0 then
                 0
 
             else
                 incrementalShim
 
         updatedTimeElapsed =
-            if String.length model.inputValue > 0 then
-                model.timeElapsed + dt
+            if String.length appData.inputValue > 0 then
+                appData.timeElapsed + dt
 
             else
-                model.timeElapsed
+                appData.timeElapsed
     in
-    ( { model | shim = updatedShim, timeElapsed = updatedTimeElapsed }, Cmd.none )
+    { appData | shim = updatedShim, timeElapsed = updatedTimeElapsed }
 
 
 refocus =
@@ -315,13 +280,17 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputReceived key ->
-            handleInputReceived model key
+            model
+                |> mapModel (handleInputReceived key)
+                |> noOpUpdate
 
         KeyReleased key ->
-            ( { model | heldKeys = Set.remove key model.heldKeys }, Cmd.none )
+            model
+                |> mapModel (\appData -> { appData | heldKeys = Set.remove key appData.heldKeys })
+                |> noOpUpdate
 
         KeyDown key ->
-            handleKeyDown model key
+            handleKeyDown key model
 
         RandomWords words ->
             let
@@ -330,22 +299,38 @@ update msg model =
 
                 letters =
                     wordsToLetters words
+
+                handler =
+                    \appData ->
+                        { appData
+                            | typing = List.map Untyped <| letters
+                            , corpus = letters
+                        }
             in
-            ( { model
-                | typing = List.map Untyped <| letters
-                , corpus = letters
-              }
-            , Cmd.none
-            )
+            model
+                |> mapModel handler
+                |> noOpUpdate
 
         Frame dt ->
-            animate model dt
+            case model of
+                Typing appData ->
+                    noOpUpdate <| Typing (animate dt appData)
+
+                Paused _ ->
+                    noOpUpdate model
 
         NewScreenSize w _ ->
-            ( { model | screenWidth = w }, Cmd.none )
+            model
+                |> mapModel
+                    (\appData -> { appData | screenWidth = w })
+                |> noOpUpdate
 
         GotViewport data ->
-            ( { model | screenWidth = floor <| data.viewport.width, screenHeight = floor <| data.viewport.height }, refocus )
+            let
+                handler =
+                    \appData -> { appData | screenWidth = floor <| data.viewport.width, screenHeight = floor <| data.viewport.height }
+            in
+            ( mapModel handler model, refocus )
 
         GrabFocus ->
             ( model, refocus )
@@ -357,7 +342,8 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ onAnimationFrameDelta Frame
+        [ onKeyDown keyDownListener
+        , onAnimationFrameDelta Frame
         , onResize (\w h -> NewScreenSize w h)
         ]
 
@@ -381,8 +367,8 @@ keyUpListener =
     D.map (\key -> KeyReleased key) decodeKey
 
 
-renderLetter : Model -> KeyPress -> Element msg
-renderLetter model keyResult =
+renderLetter : KeyPress -> AppData -> Element msg
+renderLetter keyResult appData =
     let
         translateSpaces c =
             if c == ' ' then
@@ -406,7 +392,7 @@ renderLetter model keyResult =
     case keyResult of
         Correct key ->
             el
-                [ El.moveRight <| model.shim
+                [ El.moveRight <| appData.shim
                 , Font.color theme.typedFontColor
                 ]
             <|
@@ -414,7 +400,7 @@ renderLetter model keyResult =
 
         Untyped key ->
             el
-                [ El.moveRight <| model.shim
+                [ El.moveRight <| appData.shim
                 , Font.color theme.fontColor
                 ]
             <|
@@ -422,7 +408,7 @@ renderLetter model keyResult =
 
         Incorrect actual intended ->
             el
-                [ El.moveRight <| model.shim
+                [ El.moveRight <| appData.shim
                 , Font.color theme.incorrect
                 , El.below <| mistakeHint actual
                 ]
@@ -436,10 +422,10 @@ space =
     el [] <| El.text " "
 
 
-renderLetters : Model -> List KeyPress -> List (Element msg)
-renderLetters model words =
+renderLetters : List KeyPress -> AppData -> List (Element msg)
+renderLetters words appData =
     words
-        |> List.map (\l -> renderLetter model l)
+        |> List.map (\l -> renderLetter l appData)
 
 
 themeMonosize =
@@ -466,14 +452,17 @@ id =
 renderTypingArea : Model -> Element Msg
 renderTypingArea model =
     let
+        appData =
+            unwrapModel model
+
         colWidth =
-            (model.screenWidth // 2) - theme.textSize
+            (appData.screenWidth // 2) - theme.textSize
 
         charCount =
-            floor <| toFloat model.screenWidth / 2 / themeMonosize
+            floor <| toFloat appData.screenWidth / 2 / themeMonosize
 
         recentlyTyped =
-            model.typed
+            appData.typed
                 |> List.reverse
                 |> List.take charCount
                 |> List.reverse
@@ -485,7 +474,7 @@ renderTypingArea model =
                 [ El.row
                     [ El.alignRight
                     ]
-                    (renderLetters model recentlyTyped)
+                    (renderLetters recentlyTyped appData)
                 ]
 
         cursor =
@@ -504,7 +493,7 @@ renderTypingArea model =
                     , El.height <| El.px theme.textSize
                     , El.alpha 0
                     ]
-                    { text = model.inputValue
+                    { text = appData.inputValue
                     , label = Input.labelHidden ""
                     , onChange = changeListener
                     , placeholder = Nothing
@@ -515,7 +504,7 @@ renderTypingArea model =
             El.row
                 [ El.width (El.fill |> El.minimum colWidth)
                 ]
-                (renderLetters model (List.take charCount model.typing))
+                (renderLetters (List.take charCount appData.typing) appData)
     in
     El.row
         []
@@ -525,14 +514,14 @@ renderTypingArea model =
         ]
 
 
-renderWpm : Model -> Element msg
-renderWpm model =
+renderWpm : AppData -> Element msg
+renderWpm appData =
     let
         time =
-            model.timeElapsed / 1000
+            appData.timeElapsed / 1000
 
         typedEntries =
-            toFloat <| String.length model.inputValue
+            toFloat <| String.length appData.inputValue
 
         minutes =
             time / 60.0
@@ -546,7 +535,7 @@ renderWpm model =
                     False
 
         mistakes =
-            toFloat (List.length <| List.filter isMistake model.typed)
+            toFloat (List.length <| List.filter isMistake appData.typed)
 
         words =
             typedEntries / 5.0
@@ -589,17 +578,44 @@ renderWpm model =
     El.text <| String.join ", " output
 
 
-renderStats : Model -> Element msg
-renderStats model =
+renderStats : AppData -> List (El.Attribute Msg) -> Element Msg
+renderStats appData attrs =
     let
         adjustment =
-            (toFloat model.screenHeight / 4) - theme.textSize
+            (toFloat appData.screenHeight / 4) - theme.textSize
     in
     el [ El.centerX, El.moveUp <| adjustment ]
-        (El.row [ Font.color theme.statsColor, Font.size <| floor (theme.textSize * 0.75) ]
-            [ renderWpm model
+        (El.row
+            (List.concat
+                [ attrs, [ Font.size <| floor (theme.textSize * 0.75) ] ]
+            )
+            [ renderWpm appData
             ]
         )
+
+
+renderStates : Model -> Element Msg
+renderStates model =
+    case model of
+        Typing appData ->
+            el
+                [ El.centerY
+                , El.centerX
+                , El.width <| El.px appData.screenWidth
+                , El.above <| renderStats appData [ Font.color theme.statsColor ]
+                ]
+                (renderTypingArea
+                    model
+                )
+
+        Paused appData ->
+            el
+                [ El.centerY
+                , El.centerX
+                , El.width <| El.px appData.screenWidth
+                , El.above <| renderStats appData [ Font.color theme.fontColor ]
+                ]
+                (el [ El.centerX ] (El.text "||"))
 
 
 view : Model -> Browser.Document Msg
@@ -613,14 +629,6 @@ view model =
             , Background.color theme.bgColor
             , El.htmlAttribute <| onClick GrabFocus
             ]
-            (El.row
-                [ El.centerY
-                , El.centerX
-                , El.width <| El.px model.screenWidth
-                , El.above <| renderStats model
-                ]
-                [ renderTypingArea model
-                ]
-            )
+            (renderStates model)
         ]
     }
