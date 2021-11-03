@@ -202,17 +202,17 @@ preventDefaultKeys =
     [ "'" ]
 
 
-togglePause : Model -> ( Model, Cmd msg )
+togglePause : Model -> ( Model, Cmd Msg )
 togglePause model =
     case model of
         Typing appData ->
-            ( Paused appData, Cmd.none )
+            ( Paused appData, refocus )
 
         Paused appData ->
-            ( Typing appData, Cmd.none )
+            ( Typing appData, refocus )
 
 
-handleKeyDown : String -> Model -> ( Model, Cmd msg )
+handleKeyDown : String -> Model -> ( Model, Cmd Msg )
 handleKeyDown key model =
     case key of
         "Enter" ->
