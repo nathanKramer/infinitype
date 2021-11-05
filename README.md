@@ -11,6 +11,7 @@ Delightful typing practice.
 ## Recommended
 
 I'm hoping to get away with not having a package.json for this project.
+
 These tools are always useful when working with elm, and are worth globally installing:
 
 Install `elm-format`:
