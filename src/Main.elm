@@ -393,6 +393,12 @@ id =
     Attr.id >> El.htmlAttribute
 
 
+{-| Calculate stats like WPM, accuracy, etc.
+
+We might want to think about running this on update only, rather than during rendering.
+That would require copying it into our model.
+
+-}
 calcStats : AppData -> { wpm : String, accuracy : String, elapsedTime : String }
 calcStats appData =
     let
@@ -470,6 +476,13 @@ calcStats appData =
     }
 
 
+{-| Render an input field to capture the user's typing input.
+Note that this input needs focus at all times while typing.
+
+To make that happen, we use the `refocus` command.
+This happens when the app is initialized, and at other points where focus is disturbed like unpausing.
+
+-}
 renderCursor : Bool -> AppData -> Element Msg
 renderCursor bright appData =
     El.row [ El.centerX, El.centerY ]
