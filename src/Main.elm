@@ -16,6 +16,7 @@ import Set exposing (Set)
 import String as S
 import Task
 import Texts.English1k as Corpus
+import Translations.English as UserText
 
 
 
@@ -669,7 +670,7 @@ renderPauseHelp appData =
         , Font.size <| theme.textSize // 2
         , El.moveDown (toFloat appData.screenHeight / 4)
         ]
-        (El.text "Resume typing to unpause...")
+        (El.text UserText.pauseHint)
 
 
 renderTypingHelp : AppData -> Element Msg
