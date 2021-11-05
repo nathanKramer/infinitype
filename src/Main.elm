@@ -640,6 +640,7 @@ renderStat ( statName, value ) bright =
         , el
             [ Font.size size
             , Font.color color
+            , El.centerX
             ]
             (El.text statName)
         ]
