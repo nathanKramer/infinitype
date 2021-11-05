@@ -280,9 +280,13 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputReceived key ->
-            model
-                |> mapModel (handleInputReceived key)
-                |> noOpUpdate
+            ( Typing
+                (model
+                    |> unwrapModel
+                    |> handleInputReceived key
+                )
+            , refocus
+            )
 
         KeyReleased key ->
             model
@@ -367,67 +371,6 @@ keyUpListener =
     D.map (\key -> KeyReleased key) decodeKey
 
 
-renderLetter : KeyPress -> AppData -> Element msg
-renderLetter keyResult appData =
-    let
-        translateSpaces c =
-            if c == ' ' then
-                '_'
-
-            else
-                c
-
-        mistakeHint actual =
-            el
-                [ El.centerX
-                , Font.color theme.incorrectHintColor
-                , Font.size <| theme.textSize // 2
-                ]
-                (El.text <|
-                    String.map
-                        translateSpaces
-                        actual
-                )
-    in
-    case keyResult of
-        Correct key _ ->
-            el
-                [ El.moveRight <| appData.shim
-                , Font.color theme.typedFontColor
-                ]
-            <|
-                El.text key
-
-        Untyped key ->
-            el
-                [ El.moveRight <| appData.shim
-                , Font.color theme.fontColor
-                ]
-            <|
-                El.text key
-
-        Incorrect actual intended _ ->
-            el
-                [ El.moveRight <| appData.shim
-                , Font.color theme.incorrect
-                , El.below <| mistakeHint actual
-                ]
-            <|
-                El.text <|
-                    String.map translateSpaces intended
-
-
-space : Element msg
-space =
-    el [] <| El.text " "
-
-
-renderLetters : List KeyPress -> AppData -> List (Element msg)
-renderLetters words appData =
-    words
-        |> List.map (\l -> renderLetter l appData)
-
-
 themeMonosize =
     theme.textSize * monosize
 
@@ -439,7 +382,7 @@ theme =
     , incorrect = El.rgb255 239 45 86
     , incorrectHintColor = El.rgba255 140 140 140 0.3
     , cursor = El.rgb255 222 222 200
-    , statsColor = El.rgba255 140 140 140 0.3
+    , veryDim = El.rgba255 140 140 140 0.3
     , textSize = 50
     }
 
@@ -449,73 +392,8 @@ id =
     Attr.id >> El.htmlAttribute
 
 
-renderTypingArea : Model -> Element Msg
-renderTypingArea model =
-    let
-        appData =
-            unwrapModel model
-
-        colWidth =
-            (appData.screenWidth // 2) - theme.textSize
-
-        charCount =
-            floor <| toFloat appData.screenWidth / 2 / themeMonosize
-
-        recentlyTyped =
-            appData.typed
-                |> List.reverse
-                |> List.take charCount
-                |> List.reverse
-
-        leftColumn =
-            El.row
-                [ El.width (El.fill |> El.minimum colWidth)
-                ]
-                [ El.row
-                    [ El.alignRight
-                    ]
-                    (renderLetters recentlyTyped appData)
-                ]
-
-        cursor =
-            El.row [ El.centerY ]
-                [ El.el
-                    [ Background.color theme.cursor
-                    , El.width <| El.px 2
-                    , El.height <| El.px theme.textSize
-                    ]
-                    El.none
-                , Input.text
-                    [ Input.focusedOnLoad
-                    , id "infinitype"
-                    , El.htmlAttribute <| Attr.tabindex 0
-                    , El.width <| El.px 1
-                    , El.height <| El.px theme.textSize
-                    , El.alpha 0
-                    ]
-                    { text = appData.inputValue
-                    , label = Input.labelHidden ""
-                    , onChange = changeListener
-                    , placeholder = Nothing
-                    }
-                ]
-
-        rightColumn =
-            El.row
-                [ El.width (El.fill |> El.minimum colWidth)
-                ]
-                (renderLetters (List.take charCount appData.typing) appData)
-    in
-    El.row
-        []
-        [ leftColumn
-        , cursor
-        , rightColumn
-        ]
-
-
-renderWpm : AppData -> Element msg
-renderWpm appData =
+calcStats : AppData -> { wpm : String, accuracy : String, elapsedTime : String }
+calcStats appData =
     let
         time =
             appData.timeElapsed / 1000
@@ -568,7 +446,9 @@ renderWpm appData =
             (typedEntries - mistakes) / typedEntries * 100
 
         wpm =
-            (words - mistakes) / minutes
+            ((words - mistakes) / minutes)
+                |> max 0
+                |> min 9999
 
         rejectNaN f =
             if isNaN f then
@@ -582,40 +462,224 @@ renderWpm appData =
                 |> rejectNaN
                 |> floor
                 |> S.fromInt
-
-        wpmString =
-            "WPM: "
-                ++ floorStr wpm
-
-        accuracyString =
-            "Accuracy: " ++ floorStr accuracy ++ "%"
-
-        elapsedTimeString =
-            "Time: " ++ (S.fromInt <| floor time) ++ "s"
-
-        output =
-            [ wpmString
-            , accuracyString
-            , elapsedTimeString
-            ]
     in
-    El.text <| String.join ", " output
+    { wpm = floorStr wpm
+    , accuracy = floorStr accuracy ++ "%"
+    , elapsedTime = (S.fromInt <| floor time) ++ "s"
+    }
 
 
-renderStats : AppData -> List (El.Attribute Msg) -> Element Msg
-renderStats appData attrs =
+renderCursor : Bool -> AppData -> Element Msg
+renderCursor bright appData =
+    El.row [ El.centerX, El.centerY ]
+        [ El.el
+            [ Background.color theme.cursor
+            , El.width <| El.px 2
+            , El.height <| El.px theme.textSize
+            , El.alpha
+                (if bright then
+                    1
+
+                 else
+                    0.5
+                )
+            ]
+            El.none
+        , Input.text
+            [ Input.focusedOnLoad
+            , id "infinitype"
+            , El.htmlAttribute <| Attr.tabindex 0
+            , El.width <| El.px 1
+            , El.height <| El.px theme.textSize
+            , El.alpha 0
+            ]
+            { text = appData.inputValue
+            , label = Input.labelHidden ""
+            , onChange = changeListener
+            , placeholder = Nothing
+            }
+        ]
+
+
+renderLetter : KeyPress -> Bool -> AppData -> Element msg
+renderLetter keyResult bright appData =
+    let
+        translateSpaces c =
+            if c == ' ' then
+                '_'
+
+            else
+                c
+
+        mistakeHint actual =
+            el
+                [ El.centerX
+                , Font.color theme.incorrectHintColor
+                , Font.size <| theme.textSize // 2
+                ]
+                (El.text <|
+                    String.map
+                        translateSpaces
+                        actual
+                )
+
+        dimmableText color =
+            if bright then
+                color
+
+            else
+                theme.veryDim
+    in
+    case keyResult of
+        Correct key _ ->
+            el
+                [ El.moveRight <| appData.shim
+                , Font.color <| dimmableText theme.typedFontColor
+                ]
+            <|
+                El.text key
+
+        Untyped key ->
+            el
+                [ El.moveRight <| appData.shim
+                , Font.color <| dimmableText theme.fontColor
+                ]
+            <|
+                El.text key
+
+        Incorrect actual intended _ ->
+            el
+                [ El.moveRight <| appData.shim
+                , Font.color <| dimmableText theme.incorrect
+                , El.below <| mistakeHint actual
+                ]
+            <|
+                El.text <|
+                    String.map translateSpaces intended
+
+
+renderLetters : AppData -> Bool -> List KeyPress -> List (Element msg)
+renderLetters appData bright words =
+    words
+        |> List.map (\l -> renderLetter l bright appData)
+
+
+renderTypingArea : Model -> Bool -> Element Msg
+renderTypingArea model bright =
+    let
+        appData =
+            unwrapModel model
+
+        colWidth =
+            appData.screenWidth // 2
+
+        widthAttr =
+            El.fill |> El.minimum colWidth |> El.maximum colWidth
+
+        charCount =
+            floor <| ((toFloat appData.screenWidth / 2.0) / themeMonosize)
+
+        recentlyTyped =
+            appData.typed
+                |> List.reverse
+                |> List.take charCount
+                |> List.reverse
+
+        renderAppLetters =
+            renderLetters appData bright
+
+        leftColumn =
+            el
+                [ El.width widthAttr
+                , El.alpha
+                    (if bright then
+                        1
+
+                     else
+                        0.2
+                    )
+                ]
+                (El.row [ El.alignRight ]
+                    (renderAppLetters recentlyTyped)
+                )
+
+        rightColumn =
+            El.row
+                [ El.width widthAttr ]
+                (renderAppLetters (List.take charCount appData.typing))
+    in
+    El.row
+        [ El.centerX ]
+        [ leftColumn
+        , renderCursor bright appData
+        , rightColumn
+        ]
+
+
+renderStat : ( String, String ) -> Bool -> Element Msg
+renderStat ( statName, value ) bright =
+    let
+        size =
+            theme.textSize // 2
+
+        color =
+            theme.typedFontColor
+
+        primaryColor =
+            if bright then
+                theme.fontColor
+
+            else
+                theme.veryDim
+
+        statsSize =
+            floor (1.5 * theme.textSize)
+    in
+    El.column []
+        [ el [ Font.size statsSize, Font.color primaryColor ] (El.text value)
+        , el
+            [ Font.size size
+            , Font.color color
+            ]
+            (El.text statName)
+        ]
+
+
+renderStats : AppData -> Bool -> Element Msg
+renderStats appData bright =
     let
         adjustment =
             (toFloat appData.screenHeight / 4) - theme.textSize
+
+        stats =
+            calcStats appData
     in
     el [ El.centerX, El.moveUp <| adjustment ]
-        (El.row
-            (List.concat
-                [ attrs, [ Font.size <| floor (theme.textSize * 0.75) ] ]
-            )
-            [ renderWpm appData
+        (El.column []
+            [ renderStat ( "wpm", stats.wpm ) bright
             ]
         )
+
+
+renderPauseHelp : AppData -> Element Msg
+renderPauseHelp appData =
+    el
+        [ El.centerX
+        , Font.size <| theme.textSize // 2
+        , El.moveDown (toFloat appData.screenHeight / 4)
+        ]
+        (El.text "Resume typing to unpause...")
+
+
+renderTypingHelp : AppData -> Element Msg
+renderTypingHelp appData =
+    El.column
+        [ El.centerX
+        , Font.size <| theme.textSize // 2
+        , Font.color theme.veryDim
+        , El.moveDown (toFloat appData.screenHeight / 4)
+        ]
+        [ El.text "pause : ⏎", El.text "reset : ␛" ]
 
 
 renderStates : Model -> Element Msg
@@ -626,10 +690,12 @@ renderStates model =
                 [ El.centerY
                 , El.centerX
                 , El.width <| El.px appData.screenWidth
-                , El.above <| renderStats appData [ Font.color theme.statsColor ]
+                , El.above <| renderStats appData False
+                , El.below <| renderTypingHelp appData
                 ]
                 (renderTypingArea
                     model
+                    True
                 )
 
         Paused appData ->
@@ -637,9 +703,14 @@ renderStates model =
                 [ El.centerY
                 , El.centerX
                 , El.width <| El.px appData.screenWidth
-                , El.above <| renderStats appData [ Font.color theme.fontColor ]
+                , El.above <| renderStats appData True
+                , El.behindContent (el [ El.centerX, El.moveUp 80.0, Font.size 200 ] (El.text "||"))
+                , El.below <| renderPauseHelp appData
                 ]
-                (el [ El.centerX ] (El.text "||"))
+                (renderTypingArea
+                    model
+                    False
+                )
 
 
 view : Model -> Browser.Document Msg
