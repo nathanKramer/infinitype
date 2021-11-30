@@ -690,7 +690,7 @@ renderPauseHelp appData =
         ]
         (El.column
             []
-            [ El.text UserText.pauseHint, El.text defaultCorpus.name ]
+            [ El.text UserText.pauseHint ]
         )
 
 
@@ -702,7 +702,7 @@ renderTypingHelp appData =
         , Font.color theme.veryDim
         , El.moveDown (toFloat appData.screenHeight / 4)
         ]
-        [ El.text "pause : ⏎", El.text "reset : ␛", El.text defaultCorpus.name ]
+        [ El.text "pause : ⏎", El.text "reset : ␛" ]
 
 
 renderStates : Model -> Element Msg
