@@ -1,4 +1,11 @@
-module Texts.English1k exposing (words)
+module Texts.English1k exposing (corpus)
+
+
+corpus =
+    { monosize = 0.5
+    , name = "English 1k"
+    , words = words
+    }
 
 
 words : String

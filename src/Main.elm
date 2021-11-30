@@ -15,7 +15,8 @@ import Regex
 import Set exposing (Set)
 import String as S
 import Task
-import Texts.English1k as Corpus
+import Texts.All exposing (texts)
+import Texts.English1k
 import Translations.English as UserText
 
 
@@ -27,14 +28,18 @@ monosize =
     0.5
 
 
+defaultCorpus =
+    Texts.English1k.corpus
+
+
 corpus : List String
 corpus =
-    Corpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
+    defaultCorpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
 charSet : Set Char
 charSet =
-    Corpus.words |> String.replace "\n" " " |> String.toList |> Set.fromList
+    defaultCorpus.words |> String.replace "\n" " " |> String.toList |> Set.fromList
 
 
 type alias Flags =
@@ -683,7 +688,10 @@ renderPauseHelp appData =
         , Font.size <| theme.textSize // 2
         , El.moveDown (toFloat appData.screenHeight / 4)
         ]
-        (El.text UserText.pauseHint)
+        (El.column
+            []
+            [ El.text UserText.pauseHint, El.text defaultCorpus.name ]
+        )
 
 
 renderTypingHelp : AppData -> Element Msg
@@ -694,7 +702,7 @@ renderTypingHelp appData =
         , Font.color theme.veryDim
         , El.moveDown (toFloat appData.screenHeight / 4)
         ]
-        [ El.text "pause : ⏎", El.text "reset : ␛" ]
+        [ El.text "pause : ⏎", El.text "reset : ␛", El.text defaultCorpus.name ]
 
 
 renderStates : Model -> Element Msg

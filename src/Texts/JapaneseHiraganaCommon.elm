@@ -1,4 +1,11 @@
-module Texts.JapaneseHiraganaCommon exposing (monosize, words)
+module Texts.JapaneseHiraganaCommon exposing (corpus)
+
+
+corpus =
+    { monosize = 1.0
+    , name = "Common Hirigana"
+    , words = words
+    }
 
 
 words : String
@@ -601,7 +608,3 @@ words =
 まで
 も
 """
-
-
-monosize =
-    1.0

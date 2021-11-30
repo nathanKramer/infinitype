@@ -1,4 +1,11 @@
-module Texts.JapaneseKatakanaCommon exposing (monosize, words)
+module Texts.JapaneseKatakanaCommon exposing (corpus)
+
+
+corpus =
+    { monosize = 1.0
+    , name = "Common Katakana"
+    , words = words
+    }
 
 
 words : String
