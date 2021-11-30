@@ -241,7 +241,7 @@ animate dt appData =
             abs appData.shim / themeMonosize
 
         speed =
-            min 4 typedKeysAheadOfCursor / 4
+            typedKeysAheadOfCursor / 4
 
         incrementalShim =
             if appData.shim < 0 then
