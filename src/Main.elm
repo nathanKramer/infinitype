@@ -323,8 +323,17 @@ confirmSelection model =
         ( _, newCorpus ) =
             Maybe.withDefault ( "Lucky Corpus", defaultCorpus ) (Array.get newIndex itemsArr)
     in
-    ( Typing { data | corpus = makeCorpus newCorpus.words }
-    , Random.generate RandomWords (randomWords 500 (makeCorpus newCorpus.words))
+    ( Typing
+        { data
+            | typing = []
+            , typed = []
+            , inputValue = ""
+            , corpus = makeCorpus newCorpus.words
+        }
+    , Cmd.batch
+        [ Random.generate RandomWords (randomWords 500 (makeCorpus newCorpus.words))
+        , refocus
+        ]
     )
 
 
@@ -342,7 +351,7 @@ handleKeyDown key model =
         "Escape" ->
             reset
 
-        "Alt" ->
+        "Control" ->
             commandPalette model
 
         "ArrowUp" ->
@@ -831,7 +840,7 @@ renderTypingHelp appData =
         [ El.column []
             [ hint ( "Pause", "⏎" )
             , hint ( "reset", "␛" )
-            , hint ( "texts", "alt" )
+            , hint ( "texts", "ctrl" )
             ]
         ]
 
