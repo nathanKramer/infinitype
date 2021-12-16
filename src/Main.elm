@@ -699,6 +699,12 @@ renderTypingHelp appData =
     let
         adjustment =
             toFloat appData.screenHeight / 4
+
+        hint ( key, value ) =
+            El.row [ El.width <| El.px 200 ]
+                [ el [ El.width <| El.fillPortion 2 ] (El.text key)
+                , el [ El.width <| El.fillPortion 1 ] (El.text value)
+                ]
     in
     El.column
         [ El.centerX
@@ -706,7 +712,12 @@ renderTypingHelp appData =
         , Font.color theme.veryDim
         , El.moveDown <| adjustment
         ]
-        [ El.text "pause : ⏎", El.text "reset : ␛" ]
+        [ El.column []
+            [ hint ( "Pause", "⏎" )
+            , hint ( "reset", "␛" )
+            , hint ( "commands", "⌘p" )
+            ]
+        ]
 
 
 renderStates : Model -> Element Msg
@@ -773,10 +784,7 @@ renderStates model =
             (unwrapModel model).screenHeight
 
         topCorners =
-            El.row [ El.width El.fill, El.alignTop ]
-                [ el [ El.alignLeft ] <| El.text "∞"
-                , el [ El.alignRight ] <| El.text "⚙"
-                ]
+            El.row [ El.alignBottom ] []
 
         bottomCorners =
             El.row [ El.alignBottom ] []
