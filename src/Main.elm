@@ -16,7 +16,7 @@ import Set exposing (Set)
 import String as S
 import Task
 import Texts.All exposing (texts)
-import Texts.English1k
+import Texts.MiscCode
 import Translations.English as UserText
 
 
@@ -29,7 +29,7 @@ monosize =
 
 
 defaultCorpus =
-    Texts.English1k.corpus
+    Texts.MiscCode.corpus
 
 
 corpus : List String
@@ -628,7 +628,7 @@ renderTypingArea model bright =
                 (renderAppLetters (List.take charCount appData.typing))
     in
     El.row
-        [ El.centerX ]
+        [ El.centerX, El.centerY ]
         [ leftColumn
         , renderCursor bright appData
         , rightColumn
@@ -668,13 +668,13 @@ renderStat ( statName, value ) bright =
 renderStats : AppData -> Bool -> Element Msg
 renderStats appData bright =
     let
-        adjustment =
-            (toFloat appData.screenHeight / 4) - theme.textSize
-
         stats =
             calcStats appData
+
+        adjustment =
+            (toFloat appData.screenHeight / 4) - theme.textSize
     in
-    el [ El.centerX, El.moveUp <| adjustment ]
+    el [ El.centerX, El.moveUp adjustment ]
         (El.column []
             [ renderStat ( "wpm", stats.wpm ) bright
             ]
@@ -686,7 +686,7 @@ renderPauseHelp appData =
     el
         [ El.centerX
         , Font.size <| theme.textSize // 2
-        , El.moveDown (toFloat appData.screenHeight / 4)
+        , El.moveDown <| (toFloat appData.screenHeight / 4)
         ]
         (El.column
             []
@@ -696,44 +696,103 @@ renderPauseHelp appData =
 
 renderTypingHelp : AppData -> Element Msg
 renderTypingHelp appData =
+    let
+        adjustment =
+            toFloat appData.screenHeight / 4
+    in
     El.column
         [ El.centerX
         , Font.size <| theme.textSize // 2
         , Font.color theme.veryDim
-        , El.moveDown (toFloat appData.screenHeight / 4)
+        , El.moveDown <| adjustment
         ]
         [ El.text "pause : ⏎", El.text "reset : ␛" ]
 
 
 renderStates : Model -> Element Msg
 renderStates model =
-    case model of
-        Typing appData ->
-            el
-                [ El.centerY
-                , El.centerX
-                , El.width <| El.px appData.screenWidth
-                , El.above <| renderStats appData False
-                , El.below <| renderTypingHelp appData
-                ]
-                (renderTypingArea
-                    model
+    let
+        bright =
+            case model of
+                Typing _ ->
                     True
-                )
 
-        Paused appData ->
-            el
-                [ El.centerY
-                , El.centerX
-                , El.width <| El.px appData.screenWidth
-                , El.above <| renderStats appData True
-                , El.behindContent (el [ El.centerX, El.moveUp 80.0, Font.size 200 ] (El.text "||"))
-                , El.below <| renderPauseHelp appData
-                ]
-                (renderTypingArea
-                    model
+                Paused _ ->
                     False
-                )
+
+        appData =
+            unwrapModel model
+
+        typingLine =
+            renderTypingArea
+                model
+                bright
+
+        baseAttrs =
+            [ El.centerY
+            , El.centerX
+            , El.width <| El.px appData.screenWidth
+            ]
+
+        stateAttrs =
+            case model of
+                Typing _ ->
+                    []
+
+                Paused _ ->
+                    [ El.behindContent
+                        (el
+                            [ El.centerX
+                            , El.centerY
+                            , Font.size 200
+                            ]
+                            (El.text "||")
+                        )
+                    ]
+
+        attrs =
+            List.concat
+                [ baseAttrs
+                , stateAttrs
+                ]
+
+        quarterHeight =
+            toFloat height / 4
+
+        typingArea =
+            El.column attrs
+                [ renderStats appData bright
+                , typingLine
+                , renderTypingHelp appData
+                ]
+
+        width =
+            (unwrapModel model).screenWidth - 50
+
+        height =
+            (unwrapModel model).screenHeight
+
+        topCorners =
+            El.row [ El.width El.fill, El.alignTop ]
+                [ el [ El.alignLeft ] <| El.text "∞"
+                , el [ El.alignRight ] <| El.text "⚙"
+                ]
+
+        bottomCorners =
+            El.row [ El.alignBottom ] []
+    in
+    el [] <|
+        El.column
+            [ El.height <| El.px height ]
+            [ el
+                [ El.centerX
+                , El.width <| El.minimum width <| El.maximum width <| El.fill
+                , El.height <| El.fillPortion 1
+                ]
+                topCorners
+            , el [ El.height <| El.fillPortion 6 ] (el [ El.centerY ] typingArea)
+            , el [ El.height <| El.fillPortion 1 ] bottomCorners
+            ]
 
 
 view : Model -> Browser.Document Msg
