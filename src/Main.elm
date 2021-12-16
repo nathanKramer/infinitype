@@ -838,9 +838,9 @@ renderTypingHelp appData =
         , El.moveDown <| adjustment
         ]
         [ El.column []
-            [ hint ( "Pause", "⏎" )
+            [ hint ( "pause", "⏎" )
             , hint ( "reset", "␛" )
-            , hint ( "texts", "ctrl" )
+            , hint ( "texts", "⌃" )
             ]
         ]
 
