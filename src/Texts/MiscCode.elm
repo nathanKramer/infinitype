@@ -3,7 +3,7 @@ module Texts.MiscCode exposing (..)
 
 corpus =
     { monosize = 0.5
-    , name = "English 1k"
+    , name = "Code"
     , words = words
     }
 

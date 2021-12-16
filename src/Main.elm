@@ -1,8 +1,10 @@
 module Main exposing (..)
 
+import Array
 import Browser
 import Browser.Dom as Dom exposing (Viewport)
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onKeyUp, onResize)
+import Dict
 import Element as El exposing (Element, el)
 import Element.Background as Background
 import Element.Font as Font
@@ -10,13 +12,14 @@ import Element.Input as Input
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Json.Decode as D
+import List.Extra as LE
 import Random exposing (Generator)
 import Regex
 import Set exposing (Set)
 import String as S
 import Task
 import Texts.All exposing (texts)
-import Texts.MiscCode
+import Texts.English1k
 import Translations.English as UserText
 
 
@@ -29,12 +32,12 @@ monosize =
 
 
 defaultCorpus =
-    Texts.MiscCode.corpus
+    Texts.English1k.corpus
 
 
-corpus : List String
-corpus =
-    defaultCorpus.words |> String.split "\n" |> List.filter (not << String.isEmpty)
+makeCorpus : String -> List String
+makeCorpus words =
+    words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
 charSet : Set Char
@@ -58,6 +61,7 @@ type alias AppData =
     , corpus : List String
     , inputValue : String
     , heldKeys : Set String
+    , corpusName : String
     , shim : Float
     , screenWidth : Int
     , screenHeight : Int
@@ -68,6 +72,7 @@ type alias AppData =
 type Model
     = Typing AppData
     | Paused AppData
+    | CommandPalette AppData
 
 
 type Msg
@@ -82,24 +87,30 @@ type Msg
     | NoOp
 
 
-randomWords : Int -> Generator (List String)
-randomWords count =
-    Random.list count <| Random.uniform "lucky" corpus
+randomWords : Int -> List String -> Generator (List String)
+randomWords count words =
+    Random.list count <| Random.uniform "lucky" words
+
+
+initialData : AppData
+initialData =
+    { typing = []
+    , typed = []
+    , heldKeys = Set.empty
+    , inputValue = ""
+    , shim = 0
+    , screenWidth = 1600
+    , screenHeight = 800
+    , corpus = []
+    , corpusName = "English 1k"
+    , timeElapsed = 0.0
+    }
 
 
 initialModel : Model
 initialModel =
     Typing
-        { typing = []
-        , typed = []
-        , heldKeys = Set.empty
-        , inputValue = ""
-        , shim = 0
-        , screenWidth = 1600
-        , screenHeight = 800
-        , corpus = []
-        , timeElapsed = 0.0
-        }
+        initialData
 
 
 mapModel : (AppData -> AppData) -> Model -> Model
@@ -111,6 +122,9 @@ mapModel fn model =
         Paused appData ->
             Paused <| fn appData
 
+        CommandPalette appData ->
+            CommandPalette <| fn appData
+
 
 unwrapModel : Model -> AppData
 unwrapModel model =
@@ -119,6 +133,9 @@ unwrapModel model =
             appData
 
         Paused appData ->
+            appData
+
+        CommandPalette appData ->
             appData
 
 
@@ -130,16 +147,17 @@ init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( initialModel
     , Cmd.batch
-        [ Random.generate RandomWords (randomWords 500)
+        [ Random.generate RandomWords (randomWords 500 (makeCorpus Texts.English1k.corpus.words))
         , Task.perform GotViewport Dom.getViewport
         ]
     )
 
 
+reset : ( Model, Cmd Msg )
 reset =
     ( initialModel
     , Cmd.batch
-        [ Random.generate RandomWords (randomWords 500)
+        [ Random.generate RandomWords (randomWords 500 (makeCorpus Texts.English1k.corpus.words))
         , Task.perform GotViewport Dom.getViewport
         , refocus
         ]
@@ -225,15 +243,113 @@ togglePause model =
         Paused appData ->
             ( Typing appData, refocus )
 
+        _ ->
+            ( model, refocus )
+
+
+commandPalette : Model -> ( Model, Cmd Msg )
+commandPalette model =
+    ( CommandPalette (unwrapModel model), Cmd.none )
+
+
+incrementCorpus : Int -> Model -> ( Model, Cmd Msg )
+incrementCorpus delta model =
+    let
+        data =
+            unwrapModel model
+
+        itemsList =
+            Dict.toList
+                texts
+
+        itemsArr =
+            itemsList |> Array.fromList
+
+        items =
+            Array.toIndexedList itemsArr
+
+        findFn : ( Int, ( String, { monosize : Float, name : String, words : String } ) ) -> Bool
+        findFn ( _, ( _, label ) ) =
+            label.name == data.corpusName
+
+        currentIndex =
+            case LE.find findFn items of
+                Just ( idx, _ ) ->
+                    idx
+
+                Nothing ->
+                    0
+
+        newIndex =
+            modBy (List.length items) (currentIndex + delta)
+
+        ( newCorpusName, _ ) =
+            Maybe.withDefault ( "Lucky Corpus", defaultCorpus ) (Array.get newIndex itemsArr)
+    in
+    ( mapModel (\appData -> { appData | corpusName = newCorpusName }) model, Cmd.none )
+
+
+confirmSelection : Model -> ( Model, Cmd Msg )
+confirmSelection model =
+    let
+        data =
+            unwrapModel model
+
+        itemsList =
+            Dict.toList
+                texts
+
+        itemsArr =
+            itemsList |> Array.fromList
+
+        items =
+            Array.toIndexedList itemsArr
+
+        findFn : ( Int, ( String, { monosize : Float, name : String, words : String } ) ) -> Bool
+        findFn ( _, ( _, label ) ) =
+            label.name == data.corpusName
+
+        currentIndex =
+            case LE.find findFn items of
+                Just ( idx, _ ) ->
+                    idx
+
+                Nothing ->
+                    0
+
+        newIndex =
+            modBy (List.length items) currentIndex
+
+        ( _, newCorpus ) =
+            Maybe.withDefault ( "Lucky Corpus", defaultCorpus ) (Array.get newIndex itemsArr)
+    in
+    ( Typing { data | corpus = makeCorpus newCorpus.words }
+    , Random.generate RandomWords (randomWords 500 (makeCorpus newCorpus.words))
+    )
+
 
 handleKeyDown : String -> Model -> ( Model, Cmd Msg )
 handleKeyDown key model =
     case key of
         "Enter" ->
-            togglePause model
+            case model of
+                CommandPalette _ ->
+                    confirmSelection model
+
+                _ ->
+                    togglePause model
 
         "Escape" ->
             reset
+
+        "Alt" ->
+            commandPalette model
+
+        "ArrowUp" ->
+            incrementCorpus -1 model
+
+        "ArrowDown" ->
+            incrementCorpus 1 model
 
         _ ->
             ( model, Cmd.none )
@@ -326,7 +442,7 @@ update msg model =
                 Typing appData ->
                     noOpUpdate <| Typing (animate dt appData)
 
-                Paused _ ->
+                _ ->
                     noOpUpdate model
 
         NewScreenSize w _ ->
@@ -701,7 +817,7 @@ renderTypingHelp appData =
             toFloat appData.screenHeight / 4
 
         hint ( key, value ) =
-            El.row [ El.width <| El.px 200 ]
+            El.row [ El.width <| El.px 150 ]
                 [ el [ El.width <| El.fillPortion 2 ] (El.text key)
                 , el [ El.width <| El.fillPortion 1 ] (El.text value)
                 ]
@@ -715,9 +831,39 @@ renderTypingHelp appData =
         [ El.column []
             [ hint ( "Pause", "⏎" )
             , hint ( "reset", "␛" )
-            , hint ( "commands", "⌘p" )
+            , hint ( "texts", "alt" )
             ]
         ]
+
+
+renderCommandPalette : Model -> Element Msg
+renderCommandPalette model =
+    let
+        data =
+            unwrapModel model
+
+        color name =
+            if data.corpusName == name then
+                theme.fontColor
+
+            else
+                theme.veryDim
+
+        itemsList =
+            Dict.toList
+                texts
+
+        selectItem ( name, _ ) =
+            el
+                [ El.centerX
+                , Font.color (color name)
+                ]
+                (El.text name)
+    in
+    El.column [ El.width <| El.px <| data.screenWidth ] <|
+        List.map
+            selectItem
+            itemsList
 
 
 renderStates : Model -> Element Msg
@@ -730,6 +876,9 @@ renderStates model =
 
                 Paused _ ->
                     False
+
+                _ ->
+                    True
 
         appData =
             unwrapModel model
@@ -747,9 +896,6 @@ renderStates model =
 
         stateAttrs =
             case model of
-                Typing _ ->
-                    []
-
                 Paused _ ->
                     [ El.behindContent
                         (el
@@ -761,14 +907,14 @@ renderStates model =
                         )
                     ]
 
+                _ ->
+                    []
+
         attrs =
             List.concat
                 [ baseAttrs
                 , stateAttrs
                 ]
-
-        quarterHeight =
-            toFloat height / 4
 
         typingArea =
             El.column attrs
@@ -788,6 +934,14 @@ renderStates model =
 
         bottomCorners =
             El.row [ El.alignBottom ] []
+
+        renderState =
+            case model of
+                CommandPalette _ ->
+                    renderCommandPalette model
+
+                _ ->
+                    typingArea
     in
     el [] <|
         El.column
@@ -798,7 +952,7 @@ renderStates model =
                 , El.height <| El.fillPortion 1
                 ]
                 topCorners
-            , el [ El.height <| El.fillPortion 6 ] (el [ El.centerY ] typingArea)
+            , el [ El.height <| El.fillPortion 6 ] (el [ El.centerY ] renderState)
             , el [ El.height <| El.fillPortion 1 ] bottomCorners
             ]
 
