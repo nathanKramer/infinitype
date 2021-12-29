@@ -23,14 +23,11 @@ import Texts.English1k
 import Translations.English as UserText
 
 
-
--- import Texts.JapaneseHiraganaCommon as JapaneseCorpus exposing (monosize)
-
-
-monosize =
-    0.5
+type alias Corpus =
+    { monosize : Float, name : String, words : String }
 
 
+defaultCorpus : Corpus
 defaultCorpus =
     Texts.English1k.corpus
 
@@ -61,7 +58,7 @@ type alias AppData =
     , corpus : List String
     , inputValue : String
     , heldKeys : Set String
-    , corpusName : String
+    , corpusData : Corpus
     , shim : Float
     , screenWidth : Int
     , screenHeight : Int
@@ -102,7 +99,7 @@ initialData =
     , screenWidth = 1600
     , screenHeight = 800
     , corpus = []
-    , corpusName = "English 1k"
+    , corpusData = defaultCorpus
     , timeElapsed = 0.0
     }
 
@@ -139,6 +136,7 @@ unwrapModel model =
             appData
 
 
+noOpUpdate : Model -> ( Model, Cmd Msg )
 noOpUpdate newModel =
     ( newModel, Cmd.none )
 
@@ -174,6 +172,7 @@ main =
         }
 
 
+isSpace : Regex.Regex
 isSpace =
     Maybe.withDefault Regex.never <|
         Regex.fromString "\\s"
@@ -216,7 +215,7 @@ handleInputReceived input appData =
             String.length input - String.length appData.inputValue
 
         newShim =
-            appData.shim + (themeMonosize * toFloat difference)
+            appData.shim + (theme.textSize * appData.corpusData.monosize * toFloat difference)
     in
     { appData | typed = typed, typing = typing, shim = newShim, inputValue = input }
 
@@ -252,28 +251,48 @@ commandPalette model =
     ( CommandPalette (unwrapModel model), Cmd.none )
 
 
-incrementCorpus : Int -> Model -> ( Model, Cmd Msg )
-incrementCorpus delta model =
+indexedCorpusList =
     let
-        data =
-            unwrapModel model
-
         itemsList =
             Dict.toList
                 texts
 
-        itemsArr =
+        arrayOfTexts =
             itemsList |> Array.fromList
 
         items =
-            Array.toIndexedList itemsArr
+            Array.toIndexedList arrayOfTexts
+    in
+    items
 
-        findFn : ( Int, ( String, { monosize : Float, name : String, words : String } ) ) -> Bool
+
+getCorpus : Int -> Corpus
+getCorpus idx =
+    let
+        findFn : ( Int, ( String, Corpus ) ) -> Bool
+        findFn ( i, ( _, label ) ) =
+            i == idx
+
+        currentCorpus =
+            case LE.find findFn indexedCorpusList of
+                Just ( _, ( _, corpus ) ) ->
+                    corpus
+
+                Nothing ->
+                    defaultCorpus
+    in
+    currentCorpus
+
+
+incrementCorpus : Int -> Model -> ( Model, Cmd Msg )
+incrementCorpus delta model =
+    let
+        findFn : ( Int, ( String, Corpus ) ) -> Bool
         findFn ( _, ( _, label ) ) =
-            label.name == data.corpusName
+            label.name == (unwrapModel model).corpusData.name
 
         currentIndex =
-            case LE.find findFn items of
+            case LE.find findFn indexedCorpusList of
                 Just ( idx, _ ) ->
                     idx
 
@@ -281,12 +300,9 @@ incrementCorpus delta model =
                     0
 
         newIndex =
-            modBy (List.length items) (currentIndex + delta)
-
-        ( newCorpusName, _ ) =
-            Maybe.withDefault ( "Lucky Corpus", defaultCorpus ) (Array.get newIndex itemsArr)
+            modBy (List.length indexedCorpusList) (currentIndex + delta)
     in
-    ( mapModel (\appData -> { appData | corpusName = newCorpusName }) model, Cmd.none )
+    ( mapModel (\appData -> { appData | corpusData = getCorpus newIndex }) model, Cmd.none )
 
 
 confirmSelection : Model -> ( Model, Cmd Msg )
@@ -307,7 +323,7 @@ confirmSelection model =
 
         findFn : ( Int, ( String, { monosize : Float, name : String, words : String } ) ) -> Bool
         findFn ( _, ( _, label ) ) =
-            label.name == data.corpusName
+            label.name == data.corpusData.name
 
         currentIndex =
             case LE.find findFn items of
@@ -368,7 +384,7 @@ animate : Float -> AppData -> AppData
 animate dt appData =
     let
         typedKeysAheadOfCursor =
-            abs appData.shim / themeMonosize
+            abs appData.shim / (theme.textSize * appData.corpusData.monosize)
 
         speed =
             typedKeysAheadOfCursor / 4
@@ -500,10 +516,6 @@ keyDownListener =
 keyUpListener : D.Decoder Msg
 keyUpListener =
     D.map (\key -> KeyReleased key) decodeKey
-
-
-themeMonosize =
-    theme.textSize * monosize
 
 
 theme =
@@ -720,6 +732,9 @@ renderTypingArea model bright =
         widthAttr =
             El.fill |> El.minimum colWidth |> El.maximum colWidth
 
+        themeMonosize =
+            theme.textSize * appData.corpusData.monosize
+
         charCount =
             floor <| ((toFloat appData.screenWidth / 2.0) / themeMonosize)
 
@@ -852,7 +867,7 @@ renderCommandPalette model =
             unwrapModel model
 
         color name =
-            if data.corpusName == name then
+            if data.corpusData.name == name then
                 theme.fontColor
 
             else
