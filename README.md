@@ -8,7 +8,7 @@ Delightful typing practice.
 2. Install `elm-live`: `npm install -g elm-live`
 3. Run `bin/start` to start a dev server
 
-## Recommended
+## Other Tools
 
 I'm hoping to get away with not having a package.json for this project.
 
