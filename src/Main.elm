@@ -172,6 +172,10 @@ main =
         }
 
 
+
+-- UPDATE --
+
+
 isSpace : Regex.Regex
 isSpace =
     Maybe.withDefault Regex.never <|
@@ -490,6 +494,10 @@ update msg model =
             ( model, Cmd.none )
 
 
+
+-- SUBSCRIPTIONS
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
@@ -499,6 +507,7 @@ subscriptions _ =
         ]
 
 
+changeListener : String -> Msg
 changeListener key =
     InputReceived key
 
@@ -516,6 +525,10 @@ keyDownListener =
 keyUpListener : D.Decoder Msg
 keyUpListener =
     D.map (\key -> KeyReleased key) decodeKey
+
+
+
+-- VIEW
 
 
 theme =
