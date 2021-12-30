@@ -310,6 +310,24 @@ incrementCorpus delta model =
     ( mapModel (\appData -> { appData | corpusData = getCorpus newIndex }) model, Cmd.none )
 
 
+toggleModifier : String -> Model -> ( Model, Cmd Msg )
+toggleModifier key model =
+    ( mapModel
+        (\data ->
+            { data
+                | heldKeys =
+                    if Set.member key data.heldKeys then
+                        Set.remove key data.heldKeys
+
+                    else
+                        Set.insert key data.heldKeys
+            }
+        )
+        model
+    , Cmd.none
+    )
+
+
 confirmSelection : Model -> ( Model, Cmd Msg )
 confirmSelection model =
     let
@@ -373,7 +391,14 @@ handleKeyDown key model =
             reset
 
         "Control" ->
-            commandPalette model
+            toggleModifier key model
+
+        "p" ->
+            if Set.member "Control" (unwrapModel model).heldKeys then
+                commandPalette model
+
+            else
+                ( model, Cmd.none )
 
         "ArrowUp" ->
             incrementCorpus -1 model
@@ -883,7 +908,7 @@ renderTypingHelp appData =
         [ El.column []
             [ hint ( "pause", "⏎" )
             , hint ( "reset", "␛" )
-            , hint ( "texts", "⌃" )
+            , hint ( "texts", "⌃+p" )
             ]
         ]
 
