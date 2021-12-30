@@ -531,6 +531,19 @@ keyUpListener =
 -- VIEW
 
 
+type alias Theme =
+    { fontColor : El.Color
+    , typedFontColor : El.Color
+    , bgColor : El.Color
+    , incorrect : El.Color
+    , incorrectHintColor : El.Color
+    , cursor : El.Color
+    , veryDim : El.Color
+    , textSize : Float
+    }
+
+
+theme : Theme
 theme =
     { fontColor = El.rgb255 170 170 170
     , typedFontColor = El.rgba255 140 140 140 0.5
@@ -644,7 +657,7 @@ renderCursor bright appData =
         [ El.el
             [ Background.color theme.cursor
             , El.width <| El.px 2
-            , El.height <| El.px theme.textSize
+            , El.height <| El.px (round theme.textSize)
             , El.alpha
                 (if bright then
                     1
@@ -659,7 +672,7 @@ renderCursor bright appData =
             , id "infinitype"
             , El.htmlAttribute <| Attr.tabindex 0
             , El.width <| El.px 1
-            , El.height <| El.px theme.textSize
+            , El.height <| El.px (round theme.textSize)
             , El.alpha 0
             ]
             { text = appData.inputValue
@@ -684,7 +697,7 @@ renderLetter keyResult bright appData =
             el
                 [ El.centerX
                 , Font.color theme.incorrectHintColor
-                , Font.size <| theme.textSize // 2
+                , Font.size <| round theme.textSize // 2
                 ]
                 (El.text <|
                     String.map
@@ -792,7 +805,7 @@ renderStat : ( String, String ) -> Bool -> Element Msg
 renderStat ( statName, value ) bright =
     let
         size =
-            theme.textSize // 2
+            round theme.textSize // 2
 
         color =
             theme.typedFontColor
@@ -838,7 +851,7 @@ renderPauseHelp : AppData -> Element Msg
 renderPauseHelp appData =
     el
         [ El.centerX
-        , Font.size <| theme.textSize // 2
+        , Font.size <| round theme.textSize // 2
         , El.moveDown <| (toFloat appData.screenHeight / 4)
         ]
         (El.column
@@ -861,7 +874,7 @@ renderTypingHelp appData =
     in
     El.column
         [ El.centerX
-        , Font.size <| theme.textSize // 2
+        , Font.size <| round theme.textSize // 2
         , Font.color theme.veryDim
         , El.moveDown <| adjustment
         ]
@@ -1001,7 +1014,7 @@ view model =
         [ El.layout
             [ Font.family [ Font.typeface "infinitype-mono", Font.monospace ]
             , Font.color theme.fontColor
-            , Font.size theme.textSize
+            , Font.size <| round theme.textSize
             , Background.color theme.bgColor
             , El.htmlAttribute <| onClick GrabFocus
             ]
