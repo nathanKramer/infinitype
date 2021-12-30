@@ -255,6 +255,7 @@ commandPalette model =
     ( CommandPalette (unwrapModel model), Cmd.none )
 
 
+indexedCorpusList : List ( Int, ( String, Corpus ) )
 indexedCorpusList =
     let
         itemsList =
@@ -423,6 +424,7 @@ animate dt appData =
     { appData | shim = updatedShim, timeElapsed = updatedTimeElapsed }
 
 
+refocus : Cmd Msg
 refocus =
     Task.attempt (\_ -> NoOp) (Dom.focus "infinitype")
 
