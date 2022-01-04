@@ -55,7 +55,6 @@ type KeyPress
 type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
-    , corpus : List String
     , inputValue : String
     , heldKeys : Set String
     , corpusData : Corpus
@@ -98,7 +97,6 @@ initialData =
     , shim = 0
     , screenWidth = 1600
     , screenHeight = 800
-    , corpus = []
     , corpusData = defaultCorpus
     , timeElapsed = 0.0
     }
@@ -141,21 +139,34 @@ noOpUpdate newModel =
     ( newModel, Cmd.none )
 
 
+wordBuffer : Int
+wordBuffer =
+    10
+
+
+drawMoreWords : Corpus -> Cmd Msg
+drawMoreWords corpus =
+    corpus.words
+        |> makeCorpus
+        |> randomWords wordBuffer
+        |> Random.generate RandomWords
+
+
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( initialModel
     , Cmd.batch
-        [ Random.generate RandomWords (randomWords 500 (makeCorpus Texts.English1k.corpus.words))
+        [ drawMoreWords defaultCorpus
         , Task.perform GotViewport Dom.getViewport
         ]
     )
 
 
-reset : ( Model, Cmd Msg )
-reset =
+reset : Model -> ( Model, Cmd Msg )
+reset model =
     ( initialModel
     , Cmd.batch
-        [ Random.generate RandomWords (randomWords 500 (makeCorpus Texts.English1k.corpus.words))
+        [ drawMoreWords (unwrapModel model).corpusData
         , Task.perform GotViewport Dom.getViewport
         , refocus
         ]
@@ -182,18 +193,27 @@ isSpace =
         Regex.fromString "\\s"
 
 
-handleInputReceived : String -> AppData -> AppData
+resultForKey : Float -> ( String, String ) -> KeyPress
+resultForKey timeElapsed ( actual, intended ) =
+    if actual == intended || (intended == " " && Regex.contains isSpace actual) then
+        Correct actual timeElapsed
+
+    else
+        Incorrect actual intended timeElapsed
+
+
+handleInputReceived : String -> AppData -> ( AppData, List (Cmd Msg) )
 handleInputReceived input appData =
     let
+        allText =
+            List.map getKey <|
+                List.concat
+                    [ appData.typed
+                    , appData.typing
+                    ]
+
         matchingChars =
-            List.take (String.length input) appData.corpus
-
-        resultForKey ( actual, intended ) =
-            if actual == intended || (intended == " " && Regex.contains isSpace actual) then
-                Correct actual appData.timeElapsed
-
-            else
-                Incorrect actual intended appData.timeElapsed
+            List.take (String.length input) allText
 
         keystrokes =
             List.map2 Tuple.pair (String.split "" input) matchingChars
@@ -208,20 +228,41 @@ handleInputReceived input appData =
                         List.drop (List.length appData.typed) keystrokes
 
                     mappedChars =
-                        List.map resultForKey newChars
+                        List.map (resultForKey appData.timeElapsed) newChars
                 in
                 List.concat [ appData.typed, mappedChars ]
 
+        untypedText =
+            List.drop (String.length input) allText
+
         typing =
-            List.map Untyped <| List.drop (String.length input) appData.corpus
+            List.map Untyped <| untypedText
 
         difference =
             String.length input - String.length appData.inputValue
 
         newShim =
             appData.shim + (theme.textSize * appData.corpusData.monosize * toFloat difference)
+
+        untypedWords =
+            String.split " " (String.join "" untypedText)
+
+        newData =
+            { appData
+                | typed = typed
+                , typing = typing
+                , shim = newShim
+                , inputValue = input
+            }
+
+        cmds =
+            if List.length untypedWords < wordBuffer then
+                [ drawMoreWords appData.corpusData ]
+
+            else
+                []
     in
-    { appData | typed = typed, typing = typing, shim = newShim, inputValue = input }
+    ( newData, cmds )
 
 
 getKey : KeyPress -> String
@@ -367,10 +408,10 @@ confirmSelection model =
             | typing = []
             , typed = []
             , inputValue = ""
-            , corpus = makeCorpus newCorpus.words
+            , corpusData = newCorpus
         }
     , Cmd.batch
-        [ Random.generate RandomWords (randomWords 500 (makeCorpus newCorpus.words))
+        [ drawMoreWords newCorpus
         , refocus
         ]
     )
@@ -388,7 +429,7 @@ handleKeyDown key model =
                     togglePause model
 
         "Escape" ->
-            reset
+            reset model
 
         "Control" ->
             toggleModifier key model
@@ -458,12 +499,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputReceived key ->
-            ( Typing
-                (model
-                    |> unwrapModel
-                    |> handleInputReceived key
-                )
-            , refocus
+            let
+                appData =
+                    unwrapModel model
+
+                ( newData, cmds ) =
+                    handleInputReceived key appData
+            in
+            ( Typing newData
+            , Cmd.batch <| cmds ++ [ refocus ]
             )
 
         KeyReleased key ->
@@ -482,11 +526,19 @@ update msg model =
                 letters =
                     wordsToLetters words
 
+                lettersToAppend appData =
+                    if List.length appData.typing > 0 then
+                        " " :: letters
+
+                    else
+                        letters
+
                 handler =
                     \appData ->
                         { appData
-                            | typing = List.map Untyped <| letters
-                            , corpus = letters
+                            | typing =
+                                appData.typing
+                                    ++ (List.map Untyped <| lettersToAppend appData)
                         }
             in
             model
