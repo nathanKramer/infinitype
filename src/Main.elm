@@ -637,7 +637,6 @@ subscriptions _ =
         , onAnimationFrameDelta Frame
         , command commandHandler
         , onChange changeListener
-        , composingInput composeListener
         , onResize (\w h -> NewScreenSize w h)
         ]
 
@@ -647,9 +646,9 @@ changeListener key =
     InputReceived key
 
 
-composeListener : Bool -> Msg
-composeListener val =
-    ComposingInput val
+customEvent : String -> msg -> El.Attribute msg
+customEvent evt message =
+    El.htmlAttribute <| Html.Events.on evt (D.succeed message)
 
 
 decodeKey : D.Decoder String
@@ -814,6 +813,8 @@ renderCursor bright appData =
             , El.width <| El.px 1
             , El.height <| El.px (round theme.textSize)
             , El.alpha 0
+            , customEvent "compositionstart" (ComposingInput True)
+            , customEvent "compositionend" (ComposingInput False)
             ]
             { text = appData.rawText
             , label = Input.labelHidden ""
@@ -910,14 +911,6 @@ renderTypingArea model bright =
                 |> List.take charCount
                 |> List.reverse
 
-        raw =
-            appData.rawText
-                |> String.split ""
-                |> List.reverse
-                |> List.take charCount
-                |> List.reverse
-                |> List.map (\k -> Untyped k)
-
         renderAppLetters =
             renderLetters appData bright
 
@@ -931,7 +924,6 @@ renderTypingArea model bright =
                      else
                         0.2
                     )
-                , El.below (El.row [ El.moveDown 100, El.alignRight ] (renderAppLetters raw))
                 ]
                 (El.row [ El.alignRight ]
                     (renderAppLetters recentlyTyped)
@@ -1016,7 +1008,7 @@ renderTypingHelp appData =
             toFloat appData.screenHeight / 4
 
         hint ( key, value ) =
-            El.row [ El.width <| El.px 150 ]
+            El.row [ El.width <| El.px 100 ]
                 [ el [ El.width <| El.fillPortion 2 ] (El.text key)
                 , el [ El.width <| El.fillPortion 1 ] (El.text value)
                 ]
@@ -1063,6 +1055,30 @@ renderCommandPalette model =
         List.map
             selectItem
             itemsList
+
+
+renderComposingHelp : AppData -> Element msg
+renderComposingHelp appData =
+    let
+        raw =
+            appData.rawText
+                |> String.split " "
+                |> List.reverse
+                |> List.take 1
+                |> List.reverse
+                |> String.join ""
+
+        help =
+            if appData.composingInput && String.length raw > 0 then
+                raw
+
+            else
+                " "
+
+        composingHelp =
+            El.row [ El.alignRight, El.centerX, El.moveDown 50 ] [ El.text help ]
+    in
+    composingHelp
 
 
 renderStates : Model -> Element Msg
@@ -1119,6 +1135,7 @@ renderStates model =
             El.column attrs
                 [ renderStats appData bright
                 , typingLine
+                , renderComposingHelp appData
                 , renderTypingHelp appData
                 ]
 

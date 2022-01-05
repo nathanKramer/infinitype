@@ -44,23 +44,3 @@ function keyHandler(event) {
 }
 
 document.addEventListener("keydown", keyHandler);
-
-// Typing updates.
-// We do this outside of elm to assist with supporting text composition (chinese/japanese input)
-infinitype.addEventListener("compositionstart", function (event) {
-  console.log(
-    "Composition Start",
-    JSON.stringify(event),
-    event.data,
-    event.target.value
-  );
-  interface.composingInput(true);
-});
-infinitype.addEventListener("compositionupdate", function (event) {
-  console.log("composition update", JSON.stringify(event), event.target.value);
-});
-infinitype.addEventListener("compositionend", function (event) {
-  interface.composingInput(false);
-  console.log("Composition End", JSON.stringify(event), event.target.value);
-  interface.onChange(event.target.value);
-});
