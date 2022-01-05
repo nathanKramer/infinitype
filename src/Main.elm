@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Array
 import Browser
@@ -71,8 +71,14 @@ type Model
     | CommandPalette AppData
 
 
+type CommandName
+    = Palette
+    | Reset
+
+
 type Msg
     = InputReceived String
+    | Command CommandName
     | KeyDown String
     | KeyReleased String
     | RandomWords (List String)
@@ -429,17 +435,12 @@ handleKeyDown key model =
                     togglePause model
 
         "Escape" ->
-            reset model
+            case model of
+                CommandPalette _ ->
+                    ( Typing (unwrapModel model), Cmd.none )
 
-        "Control" ->
-            toggleModifier key model
-
-        "p" ->
-            if Set.member "Control" (unwrapModel model).heldKeys then
-                commandPalette model
-
-            else
-                ( model, Cmd.none )
+                _ ->
+                    commandPalette model
 
         "ArrowUp" ->
             incrementCorpus -1 model
@@ -510,6 +511,9 @@ update msg model =
             , Cmd.batch <| cmds ++ [ refocus ]
             )
 
+        Command cmd ->
+            handleCommand cmd model
+
         KeyReleased key ->
             model
                 |> mapModel (\appData -> { appData | heldKeys = Set.remove key appData.heldKeys })
@@ -573,8 +577,34 @@ update msg model =
             ( model, Cmd.none )
 
 
+handleCommand : CommandName -> Model -> ( Model, Cmd Msg )
+handleCommand cmd model =
+    case cmd of
+        Palette ->
+            commandPalette model
+
+        Reset ->
+            reset model
+
+
 
 -- SUBSCRIPTIONS
+
+
+port command : (String -> msg) -> Sub msg
+
+
+commandHandler : String -> Msg
+commandHandler cmd =
+    case cmd of
+        "p" ->
+            Command Palette
+
+        "Tab" ->
+            Command Reset
+
+        _ ->
+            NoOp
 
 
 subscriptions : Model -> Sub Msg
@@ -582,6 +612,7 @@ subscriptions _ =
     Sub.batch
         [ onKeyDown keyDownListener
         , onAnimationFrameDelta Frame
+        , command commandHandler
         , onResize (\w h -> NewScreenSize w h)
         ]
 
@@ -959,8 +990,7 @@ renderTypingHelp appData =
         ]
         [ El.column []
             [ hint ( "pause", "⏎" )
-            , hint ( "reset", "␛" )
-            , hint ( "texts", "⌃+p" )
+            , hint ( "menu ", "␛" )
             ]
         ]
 
