@@ -56,7 +56,6 @@ type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
     , inputValue : String
-    , rawInput : String
     , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
@@ -103,7 +102,6 @@ initialData =
     , typed = []
     , heldKeys = Set.empty
     , inputValue = ""
-    , rawInput = ""
     , composingInput = False
     , shim = 0
     , screenWidth = 1600
@@ -262,7 +260,6 @@ handleInputReceived input appData =
             if appData.composingInput then
                 { appData
                     | inputValue = input
-                    , rawInput = input
                 }
 
             else
@@ -271,7 +268,6 @@ handleInputReceived input appData =
                     , typing = typing
                     , shim = newShim
                     , inputValue = input
-                    , rawInput = input
                 }
 
         cmds =
