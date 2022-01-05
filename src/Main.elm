@@ -56,6 +56,7 @@ type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
     , inputValue : String
+    , rawText : String
     , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
@@ -102,6 +103,7 @@ initialData =
     , typed = []
     , heldKeys = Set.empty
     , inputValue = ""
+    , rawText = ""
     , composingInput = False
     , shim = 0
     , screenWidth = 1600
@@ -259,7 +261,7 @@ handleInputReceived input appData =
         newData =
             if appData.composingInput then
                 { appData
-                    | inputValue = input
+                    | rawText = input
                 }
 
             else
@@ -267,6 +269,7 @@ handleInputReceived input appData =
                     | typed = typed
                     , typing = typing
                     , shim = newShim
+                    , rawText = input
                     , inputValue = input
                 }
 
@@ -812,7 +815,7 @@ renderCursor bright appData =
             , El.height <| El.px (round theme.textSize)
             , El.alpha 0
             ]
-            { text = appData.inputValue
+            { text = appData.rawText
             , label = Input.labelHidden ""
             , onChange = changeListener
             , placeholder = Nothing
@@ -907,6 +910,14 @@ renderTypingArea model bright =
                 |> List.take charCount
                 |> List.reverse
 
+        raw =
+            appData.rawText
+                |> String.split ""
+                |> List.reverse
+                |> List.take charCount
+                |> List.reverse
+                |> List.map (\k -> Untyped k)
+
         renderAppLetters =
             renderLetters appData bright
 
@@ -920,6 +931,7 @@ renderTypingArea model bright =
                      else
                         0.2
                     )
+                , El.below (El.row [ El.moveDown 100, El.alignRight ] (renderAppLetters raw))
                 ]
                 (El.row [ El.alignRight ]
                     (renderAppLetters recentlyTyped)
