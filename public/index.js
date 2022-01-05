@@ -5,17 +5,20 @@ const app = Elm.Main.init({
   flags: {},
 });
 
-const notifyElm = app.ports.command.send;
-const commands = ["p"];
-const prevent = ["ArrowLeft", "ArrowRight"];
+const interface = {
+  notify: app.ports.command.send,
+  commands: ["p"],
+  prevent: ["ArrowLeft", "ArrowRight"],
+};
 
 function notifyWithDefault(event) {
   event.preventDefault();
-  notifyElm(event.key);
+  interface.notify(event.key);
 }
 
 function keyHandler(event) {
   const isCommand = event.metaKey || event.ctrlKey;
+  const { prevent, commands } = interface;
 
   if (!isCommand) {
     if (event.key === "Tab") {
