@@ -37,11 +37,6 @@ makeCorpus words =
     words |> String.split "\n" |> List.filter (not << String.isEmpty)
 
 
-charSet : Set Char
-charSet =
-    defaultCorpus.words |> String.replace "\n" " " |> String.toList |> Set.fromList
-
-
 type alias Flags =
     {}
 
