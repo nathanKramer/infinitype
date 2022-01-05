@@ -991,6 +991,7 @@ renderTypingHelp appData =
         [ El.column []
             [ hint ( "pause", "⏎" )
             , hint ( "menu ", "␛" )
+            , hint ( "reset", "⇥" )
             ]
         ]
 
