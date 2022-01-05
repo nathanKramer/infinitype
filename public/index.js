@@ -1,9 +1,13 @@
+// We must not crash
+
 const app = Elm.Main.init({
   node: document.getElementById("elm"),
   flags: {},
 });
+
 const notifyElm = app.ports.command.send;
 const commands = ["p"];
+const prevent = ["ArrowLeft", "ArrowRight"];
 
 function notifyWithDefault(event) {
   event.preventDefault();
@@ -18,6 +22,10 @@ function keyHandler(event) {
       notifyWithDefault(event);
       return;
     }
+
+    prevent.forEach((key) => {
+      if (event.key === key) event.preventDefault();
+    });
 
     return;
   }
