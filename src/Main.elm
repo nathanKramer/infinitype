@@ -258,10 +258,13 @@ handleInputReceived input appData =
         untypedWords =
             String.split " " (String.join "" untypedText)
 
+        raw =
+            String.dropLeft (String.length appData.inputValue) input
+
         newData =
             if appData.composingInput then
                 { appData
-                    | rawText = input
+                    | rawText = raw
                 }
 
             else
@@ -269,7 +272,7 @@ handleInputReceived input appData =
                     | typed = typed
                     , typing = typing
                     , shim = newShim
-                    , rawText = input
+                    , rawText = ""
                     , inputValue = input
                 }
 
@@ -513,7 +516,7 @@ update msg model =
     case msg of
         ComposingInput val ->
             model
-                |> mapModel (\appData -> { appData | composingInput = val })
+                |> mapModel (\appData -> { appData | composingInput = val, rawText = "" })
                 |> noOpUpdate
 
         InputReceived key ->
@@ -611,12 +614,6 @@ handleCommand cmd model =
 port command : (String -> msg) -> Sub msg
 
 
-port onChange : (String -> msg) -> Sub msg
-
-
-port composingInput : (Bool -> msg) -> Sub msg
-
-
 commandHandler : String -> Msg
 commandHandler cmd =
     case cmd of
@@ -636,7 +633,6 @@ subscriptions _ =
         [ onKeyDown keyDownListener
         , onAnimationFrameDelta Frame
         , command commandHandler
-        , onChange changeListener
         , onResize (\w h -> NewScreenSize w h)
         ]
 
@@ -816,7 +812,7 @@ renderCursor bright appData =
             , customEvent "compositionstart" (ComposingInput True)
             , customEvent "compositionend" (ComposingInput False)
             ]
-            { text = appData.rawText
+            { text = appData.inputValue ++ appData.rawText
             , label = Input.labelHidden ""
             , onChange = changeListener
             , placeholder = Nothing
@@ -1060,17 +1056,9 @@ renderCommandPalette model =
 renderComposingHelp : AppData -> Element msg
 renderComposingHelp appData =
     let
-        raw =
-            appData.rawText
-                |> String.split " "
-                |> List.reverse
-                |> List.take 1
-                |> List.reverse
-                |> String.join ""
-
         help =
-            if appData.composingInput && String.length raw > 0 then
-                raw
+            if appData.composingInput && String.length appData.rawText > 0 then
+                appData.rawText
 
             else
                 " "

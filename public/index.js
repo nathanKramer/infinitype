@@ -8,8 +8,6 @@ const infinitype = document.getElementById("infinitype");
 
 const interface = {
   notify: app.ports.command.send,
-  onChange: app.ports.onChange.send,
-  composingInput: app.ports.composingInput.send,
   commands: ["p"],
   prevent: ["ArrowLeft", "ArrowRight"],
 };
