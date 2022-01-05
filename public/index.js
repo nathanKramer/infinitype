@@ -4,6 +4,7 @@ const app = Elm.Main.init({
   node: document.getElementById("elm"),
   flags: {},
 });
+const infinitype = document.getElementById("infinitype");
 
 const interface = {
   notify: app.ports.command.send,

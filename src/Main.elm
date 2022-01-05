@@ -56,6 +56,8 @@ type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
     , inputValue : String
+    , rawText : String
+    , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
     , shim : Float
@@ -79,6 +81,7 @@ type CommandName
 type Msg
     = InputReceived String
     | Command CommandName
+    | ComposingInput Bool
     | KeyDown String
     | KeyReleased String
     | RandomWords (List String)
@@ -100,6 +103,8 @@ initialData =
     , typed = []
     , heldKeys = Set.empty
     , inputValue = ""
+    , rawText = ""
+    , composingInput = False
     , shim = 0
     , screenWidth = 1600
     , screenHeight = 800
@@ -253,13 +258,23 @@ handleInputReceived input appData =
         untypedWords =
             String.split " " (String.join "" untypedText)
 
+        raw =
+            String.dropLeft (String.length appData.inputValue) input
+
         newData =
-            { appData
-                | typed = typed
-                , typing = typing
-                , shim = newShim
-                , inputValue = input
-            }
+            if appData.composingInput then
+                { appData
+                    | rawText = raw
+                }
+
+            else
+                { appData
+                    | typed = typed
+                    , typing = typing
+                    , shim = newShim
+                    , rawText = ""
+                    , inputValue = input
+                }
 
         cmds =
             if List.length untypedWords < wordBuffer then
@@ -499,6 +514,11 @@ refocus =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ComposingInput val ->
+            model
+                |> mapModel (\appData -> { appData | composingInput = val, rawText = "" })
+                |> noOpUpdate
+
         InputReceived key ->
             let
                 appData =
@@ -620,6 +640,11 @@ subscriptions _ =
 changeListener : String -> Msg
 changeListener key =
     InputReceived key
+
+
+customEvent : String -> msg -> El.Attribute msg
+customEvent evt message =
+    El.htmlAttribute <| Html.Events.on evt (D.succeed message)
 
 
 decodeKey : D.Decoder String
@@ -784,8 +809,10 @@ renderCursor bright appData =
             , El.width <| El.px 1
             , El.height <| El.px (round theme.textSize)
             , El.alpha 0
+            , customEvent "compositionstart" (ComposingInput True)
+            , customEvent "compositionend" (ComposingInput False)
             ]
-            { text = appData.inputValue
+            { text = appData.inputValue ++ appData.rawText
             , label = Input.labelHidden ""
             , onChange = changeListener
             , placeholder = Nothing
@@ -977,7 +1004,7 @@ renderTypingHelp appData =
             toFloat appData.screenHeight / 4
 
         hint ( key, value ) =
-            El.row [ El.width <| El.px 150 ]
+            El.row [ El.width <| El.px 100 ]
                 [ el [ El.width <| El.fillPortion 2 ] (El.text key)
                 , el [ El.width <| El.fillPortion 1 ] (El.text value)
                 ]
@@ -1024,6 +1051,22 @@ renderCommandPalette model =
         List.map
             selectItem
             itemsList
+
+
+renderComposingHelp : AppData -> Element msg
+renderComposingHelp appData =
+    let
+        help =
+            if appData.composingInput && String.length appData.rawText > 0 then
+                appData.rawText
+
+            else
+                " "
+
+        composingHelp =
+            El.row [ El.alignRight, El.centerX, El.moveDown 50 ] [ El.text help ]
+    in
+    composingHelp
 
 
 renderStates : Model -> Element Msg
@@ -1080,6 +1123,7 @@ renderStates model =
             El.column attrs
                 [ renderStats appData bright
                 , typingLine
+                , renderComposingHelp appData
                 , renderTypingHelp appData
                 ]
 
