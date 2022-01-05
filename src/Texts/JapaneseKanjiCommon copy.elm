@@ -1,4 +1,4 @@
-module Texts.JapaneseHiraganaCommon exposing (corpus)
+module Texts.JapaneseKanjiCommon exposing (corpus)
 
 
 corpus =
