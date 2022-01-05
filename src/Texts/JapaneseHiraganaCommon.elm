@@ -3,7 +3,7 @@ module Texts.JapaneseHiraganaCommon exposing (corpus)
 
 corpus =
     { monosize = 1.0
-    , name = "Common Hirigana"
+    , name = "Common Hiragana"
     , words = words
     }
 
