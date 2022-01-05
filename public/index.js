@@ -4,9 +4,12 @@ const app = Elm.Main.init({
   node: document.getElementById("elm"),
   flags: {},
 });
+const infinitype = document.getElementById("infinitype");
 
 const interface = {
   notify: app.ports.command.send,
+  onChange: app.ports.onChange.send,
+  composingInput: app.ports.composingInput.send,
   commands: ["p"],
   prevent: ["ArrowLeft", "ArrowRight"],
 };
@@ -41,3 +44,13 @@ function keyHandler(event) {
 }
 
 document.addEventListener("keydown", keyHandler);
+
+// Typing updates.
+// We do this outside of elm to assist with supporting text composition (chinese/japanese input)
+infinitype.addEventListener("compositionstart", function (event) {
+  interface.composingInput(true);
+});
+infinitype.addEventListener("compositionend", function (event) {
+  interface.composingInput(false);
+  interface.onChange(event.target.value);
+});

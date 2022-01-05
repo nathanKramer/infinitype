@@ -56,6 +56,8 @@ type alias AppData =
     { typed : List KeyPress
     , typing : List KeyPress
     , inputValue : String
+    , rawInput : String
+    , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
     , shim : Float
@@ -79,6 +81,7 @@ type CommandName
 type Msg
     = InputReceived String
     | Command CommandName
+    | ComposingInput Bool
     | KeyDown String
     | KeyReleased String
     | RandomWords (List String)
@@ -100,6 +103,8 @@ initialData =
     , typed = []
     , heldKeys = Set.empty
     , inputValue = ""
+    , rawInput = ""
+    , composingInput = False
     , shim = 0
     , screenWidth = 1600
     , screenHeight = 800
@@ -254,12 +259,20 @@ handleInputReceived input appData =
             String.split " " (String.join "" untypedText)
 
         newData =
-            { appData
-                | typed = typed
-                , typing = typing
-                , shim = newShim
-                , inputValue = input
-            }
+            if appData.composingInput then
+                { appData
+                    | inputValue = input
+                    , rawInput = input
+                }
+
+            else
+                { appData
+                    | typed = typed
+                    , typing = typing
+                    , shim = newShim
+                    , inputValue = input
+                    , rawInput = input
+                }
 
         cmds =
             if List.length untypedWords < wordBuffer then
@@ -499,6 +512,11 @@ refocus =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ComposingInput val ->
+            model
+                |> mapModel (\appData -> { appData | composingInput = val })
+                |> noOpUpdate
+
         InputReceived key ->
             let
                 appData =
@@ -594,6 +612,12 @@ handleCommand cmd model =
 port command : (String -> msg) -> Sub msg
 
 
+port onChange : (String -> msg) -> Sub msg
+
+
+port composingInput : (Bool -> msg) -> Sub msg
+
+
 commandHandler : String -> Msg
 commandHandler cmd =
     case cmd of
@@ -613,6 +637,8 @@ subscriptions _ =
         [ onKeyDown keyDownListener
         , onAnimationFrameDelta Frame
         , command commandHandler
+        , onChange changeListener
+        , composingInput composeListener
         , onResize (\w h -> NewScreenSize w h)
         ]
 
@@ -620,6 +646,11 @@ subscriptions _ =
 changeListener : String -> Msg
 changeListener key =
     InputReceived key
+
+
+composeListener : Bool -> Msg
+composeListener val =
+    ComposingInput val
 
 
 decodeKey : D.Decoder String
