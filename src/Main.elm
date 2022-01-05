@@ -19,7 +19,7 @@ import Set exposing (Set)
 import String as S
 import Task
 import Texts.All exposing (texts)
-import Texts.English1k
+import Texts.JapaneseHiraganaCommon
 import Translations.English as UserText
 
 
@@ -29,7 +29,7 @@ type alias Corpus =
 
 defaultCorpus : Corpus
 defaultCorpus =
-    Texts.English1k.corpus
+    Texts.JapaneseHiraganaCommon.corpus
 
 
 makeCorpus : String -> List String
