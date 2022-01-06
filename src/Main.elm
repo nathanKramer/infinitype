@@ -996,10 +996,10 @@ renderTypingHelp : AppData -> Element Msg
 renderTypingHelp appData =
     let
         adjustment =
-            toFloat appData.screenHeight / 4
+            toFloat appData.screenHeight / 5
 
         hint ( key, value ) =
-            El.row [ El.width <| El.px 100 ]
+            El.row [ El.width <| El.px 120 ]
                 [ el [ El.width <| El.fillPortion 2 ] (El.text key)
                 , el [ El.width <| El.fillPortion 1 ] (El.text value)
                 ]
