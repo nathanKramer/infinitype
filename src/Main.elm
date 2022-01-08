@@ -1089,7 +1089,7 @@ renderStates model =
         baseAttrs =
             [ El.centerY
             , El.centerX
-            , El.width <| El.px appData.screenWidth
+            , El.width <| El.px (appData.screenWidth - 75)
             ]
 
         stateAttrs =
