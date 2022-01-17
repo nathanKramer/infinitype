@@ -20,6 +20,7 @@ import String as S
 import Task
 import Texts.All exposing (texts)
 import Texts.English1k
+import Time
 import Translations.English as UserText
 
 
@@ -52,6 +53,7 @@ type alias AppData =
     , typing : List KeyPress
     , inputValue : String
     , rawText : String
+    , stats : StatsData
     , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
@@ -59,6 +61,13 @@ type alias AppData =
     , screenWidth : Int
     , screenHeight : Int
     , timeElapsed : Float
+    }
+
+
+type alias StatsData =
+    { wpm : String
+    , accuracy : String
+    , elapsedTime : String
     }
 
 
@@ -81,6 +90,7 @@ type Msg
     | KeyReleased String
     | RandomWords (List String)
     | Frame Float
+    | Tick Time.Posix
     | NewScreenSize Int Int
     | GotViewport Viewport
     | GrabFocus
@@ -99,6 +109,7 @@ initialData =
     , heldKeys = Set.empty
     , inputValue = ""
     , rawText = ""
+    , stats = StatsData "" "" ""
     , composingInput = False
     , shim = 0
     , screenWidth = 1600
@@ -520,11 +531,15 @@ update msg model =
                     unwrapModel model
 
                 ( newData, cmds ) =
-                    handleInputReceived key appData
+                    appData
+                        |> handleInputReceived key
             in
             ( Typing newData
             , Cmd.batch <| cmds ++ [ refocus ]
             )
+
+        Tick _ ->
+            ( mapModel calcStats <| model, Cmd.none )
 
         Command cmd ->
             handleCommand cmd model
@@ -629,6 +644,7 @@ subscriptions _ =
         , onAnimationFrameDelta Frame
         , command commandHandler
         , onResize (\w h -> NewScreenSize w h)
+        , Time.every 100 Tick
         ]
 
 
@@ -697,7 +713,7 @@ We might want to think about running this on update only, rather than during ren
 That would require copying it into our model.
 
 -}
-calcStats : AppData -> { wpm : String, accuracy : String, elapsedTime : String }
+calcStats : AppData -> AppData
 calcStats appData =
     let
         time =
@@ -767,11 +783,14 @@ calcStats appData =
                 |> rejectNaN
                 |> floor
                 |> S.fromInt
+
+        stats =
+            { wpm = floorStr wpm
+            , accuracy = floorStr accuracy ++ "%"
+            , elapsedTime = (S.fromInt <| floor time) ++ "s"
+            }
     in
-    { wpm = floorStr wpm
-    , accuracy = floorStr accuracy ++ "%"
-    , elapsedTime = (S.fromInt <| floor time) ++ "s"
-    }
+    { appData | stats = stats }
 
 
 {-| Render an input field to capture the user's typing input.
@@ -966,15 +985,12 @@ renderStat ( statName, value ) bright =
 renderStats : AppData -> Bool -> Element Msg
 renderStats appData bright =
     let
-        stats =
-            calcStats appData
-
         adjustment =
             (toFloat appData.screenHeight / 4) - theme.textSize
     in
     el [ El.centerX, El.moveUp adjustment ]
         (El.column []
-            [ renderStat ( "wpm", stats.wpm ) bright
+            [ renderStat ( "wpm", appData.stats.wpm ) bright
             ]
         )
 
