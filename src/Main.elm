@@ -58,8 +58,7 @@ type alias AppData =
     , heldKeys : Set String
     , corpusData : Corpus
     , shim : Float
-    , screenWidth : Int
-    , screenHeight : Int
+    , screen : Maybe Dimensions
     , timeElapsed : Float
     }
 
@@ -97,6 +96,10 @@ type Msg
     | NoOp
 
 
+type alias Dimensions =
+    { width : Int, height : Int }
+
+
 randomWords : Int -> List String -> Generator (List String)
 randomWords count words =
     Random.list count <| Random.uniform "lucky" words
@@ -109,11 +112,10 @@ initialData =
     , heldKeys = Set.empty
     , inputValue = ""
     , rawText = ""
-    , stats = StatsData "" "" ""
+    , stats = StatsData "0" "" ""
     , composingInput = False
     , shim = 0
-    , screenWidth = 1600
-    , screenHeight = 800
+    , screen = Nothing
     , corpusData = defaultCorpus
     , timeElapsed = 0.0
     }
@@ -181,7 +183,7 @@ init _ =
 
 reset : Model -> ( Model, Cmd Msg )
 reset model =
-    ( initialModel
+    ( mapModel (\m -> { m | screen = (unwrapModel model).screen }) initialModel
     , Cmd.batch
         [ drawMoreWords (unwrapModel model).corpusData
         , Task.perform GotViewport Dom.getViewport
@@ -587,16 +589,31 @@ update msg model =
                 _ ->
                     noOpUpdate model
 
-        NewScreenSize w _ ->
+        NewScreenSize w h ->
             model
                 |> mapModel
-                    (\appData -> { appData | screenWidth = w })
+                    (\appData ->
+                        { appData
+                            | screen =
+                                Just
+                                    { width = w
+                                    , height = h
+                                    }
+                        }
+                    )
                 |> noOpUpdate
 
         GotViewport data ->
             let
                 handler =
-                    \appData -> { appData | screenWidth = floor <| data.viewport.width, screenHeight = floor <| data.viewport.height }
+                    \appData ->
+                        { appData
+                            | screen =
+                                Just
+                                    { width = floor <| data.viewport.width
+                                    , height = floor <| data.viewport.height
+                                    }
+                        }
             in
             ( mapModel handler model, refocus )
 
@@ -897,14 +914,14 @@ renderLetters appData bright words =
         |> List.map (\l -> renderLetter l bright appData)
 
 
-renderTypingArea : Model -> Bool -> Element Msg
-renderTypingArea model bright =
+renderTypingArea : Model -> Dimensions -> Bool -> Element Msg
+renderTypingArea model screen bright =
     let
         appData =
             unwrapModel model
 
         colWidth =
-            appData.screenWidth // 2
+            screen.width // 2
 
         widthAttr =
             El.fill |> El.minimum colWidth |> El.maximum colWidth
@@ -913,7 +930,7 @@ renderTypingArea model bright =
             theme.textSize * appData.corpusData.monosize
 
         charCount =
-            floor <| ((toFloat appData.screenWidth / 2.0) / themeMonosize)
+            floor <| ((toFloat screen.width / 2.0) / themeMonosize)
 
         recentlyTyped =
             appData.typed
@@ -982,11 +999,11 @@ renderStat ( statName, value ) bright =
         ]
 
 
-renderStats : AppData -> Bool -> Element Msg
-renderStats appData bright =
+renderStats : AppData -> Dimensions -> Bool -> Element Msg
+renderStats appData screen bright =
     let
         adjustment =
-            (toFloat appData.screenHeight / 4) - theme.textSize
+            (toFloat screen.height / 4) - theme.textSize
     in
     el [ El.centerX, El.moveUp adjustment ]
         (El.column []
@@ -995,24 +1012,29 @@ renderStats appData bright =
         )
 
 
-renderPauseHelp : AppData -> Element Msg
-renderPauseHelp appData =
-    el
-        [ El.centerX
-        , Font.size <| round theme.textSize // 2
-        , El.moveDown <| (toFloat appData.screenHeight / 4)
-        ]
-        (El.column
-            []
-            [ El.text UserText.pauseHint ]
-        )
+renderPauseHelp : AppData -> Dimensions -> Element Msg
+renderPauseHelp appData screens =
+    case appData.screen of
+        Nothing ->
+            El.none
+
+        Just screen ->
+            el
+                [ El.centerX
+                , Font.size <| round theme.textSize // 2
+                , El.moveDown <| (toFloat screen.height / 4)
+                ]
+                (El.column
+                    []
+                    [ El.text UserText.pauseHint ]
+                )
 
 
-renderTypingHelp : AppData -> Element Msg
-renderTypingHelp appData =
+renderTypingHelp : AppData -> Dimensions -> Element Msg
+renderTypingHelp appData screen =
     let
         adjustment =
-            toFloat appData.screenHeight / 5
+            toFloat screen.height / 5
 
         hint ( key, value ) =
             El.row [ El.width <| El.px 120 ]
@@ -1034,8 +1056,8 @@ renderTypingHelp appData =
         ]
 
 
-renderCommandPalette : Model -> Element Msg
-renderCommandPalette model =
+renderCommandPalette : Model -> Dimensions -> Element Msg
+renderCommandPalette model screen =
     let
         data =
             unwrapModel model
@@ -1058,7 +1080,7 @@ renderCommandPalette model =
                 ]
                 (El.text name)
     in
-    El.column [ El.width <| El.px <| data.screenWidth ] <|
+    El.column [ El.width <| El.px <| screen.width ] <|
         List.map
             selectItem
             itemsList
@@ -1080,8 +1102,8 @@ renderComposingHelp appData =
     composingHelp
 
 
-renderStates : Model -> Element Msg
-renderStates model =
+renderStates : Model -> Dimensions -> Element Msg
+renderStates model screen =
     let
         bright =
             case model of
@@ -1100,12 +1122,13 @@ renderStates model =
         typingLine =
             renderTypingArea
                 model
+                screen
                 bright
 
         baseAttrs =
             [ El.centerY
             , El.centerX
-            , El.width <| El.px (appData.screenWidth - 75)
+            , El.width <| El.px (screen.width - 75)
             ]
 
         stateAttrs =
@@ -1132,17 +1155,17 @@ renderStates model =
 
         typingArea =
             El.column attrs
-                [ renderStats appData bright
+                [ renderStats appData screen bright
                 , typingLine
                 , renderComposingHelp appData
-                , renderTypingHelp appData
+                , renderTypingHelp appData screen
                 ]
 
         width =
-            (unwrapModel model).screenWidth - 50
+            screen.width - 50
 
         height =
-            (unwrapModel model).screenHeight
+            screen.height
 
         topCorners =
             El.row [ El.alignBottom ] []
@@ -1153,7 +1176,7 @@ renderStates model =
         renderState =
             case model of
                 CommandPalette _ ->
-                    renderCommandPalette model
+                    renderCommandPalette model screen
 
                 _ ->
                     typingArea
@@ -1183,6 +1206,12 @@ view model =
             , Background.color theme.bgColor
             , El.htmlAttribute <| onClick GrabFocus
             ]
-            (renderStates model)
+            (case (unwrapModel model).screen of
+                Nothing ->
+                    El.none
+
+                Just screen ->
+                    renderStates model screen
+            )
         ]
     }
