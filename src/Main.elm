@@ -437,6 +437,7 @@ confirmSelection model =
             | typing = []
             , typed = []
             , inputValue = ""
+            , timeElapsed = 0.0
             , corpusData = newCorpus
         }
     , Cmd.batch
