@@ -469,7 +469,13 @@ handleKeyDown key model =
         "ArrowUp" ->
             incrementCorpus -1 model
 
+        "k" ->
+            incrementCorpus -1 model
+
         "ArrowDown" ->
+            incrementCorpus 1 model
+
+        "j" ->
             incrementCorpus 1 model
 
         _ ->
