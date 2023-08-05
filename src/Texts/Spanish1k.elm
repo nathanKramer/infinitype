@@ -1,11 +1,12 @@
 module Texts.Spanish1k exposing (corpus)
 
+
 corpus =
-    {
-        monosize = 0.5
-        , name = "Spanish 1k"
-        , words = words
+    { monosize = 0.5
+    , name = "Spanish 1k"
+    , words = words
     }
+
 
 words : String
 words =
@@ -24,7 +25,6 @@ ellos
 ser
 en
 uno
-<
 este
 desde
 por
