@@ -449,37 +449,40 @@ confirmSelection model =
 
 handleKeyDown : String -> Model -> ( Model, Cmd Msg )
 handleKeyDown key model =
-    case key of
-        "Enter" ->
-            case model of
-                CommandPalette _ ->
+    case model of
+        CommandPalette _ ->
+            case key of
+                "Enter" ->
                     confirmSelection model
 
-                _ ->
-                    togglePause model
-
-        "Escape" ->
-            case model of
-                CommandPalette _ ->
+                "Escape" ->
                     ( Typing (unwrapModel model), Cmd.none )
 
+                "ArrowUp" ->
+                    incrementCorpus -1 model
+
+                "k" ->
+                    incrementCorpus -1 model
+
+                "ArrowDown" ->
+                    incrementCorpus 1 model
+
+                "j" ->
+                    incrementCorpus 1 model
+
                 _ ->
-                    commandPalette model
-
-        "ArrowUp" ->
-            incrementCorpus -1 model
-
-        "k" ->
-            incrementCorpus -1 model
-
-        "ArrowDown" ->
-            incrementCorpus 1 model
-
-        "j" ->
-            incrementCorpus 1 model
+                    ( model, Cmd.none )
 
         _ ->
-            ( model, Cmd.none )
+            case key of
+                "Enter" ->
+                    togglePause model
+
+                "Escape" ->
+                    commandPalette model
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 animate : Float -> AppData -> AppData
@@ -967,6 +970,15 @@ renderTypingArea model screen bright =
             El.row
                 [ El.width widthAttr ]
                 (renderAppLetters (List.take charCount appData.typing))
+
+        debugVals =
+            ( List.length appData.typed |> String.fromInt, List.length appData.typing |> String.fromInt )
+
+        _ =
+            Debug.log "Debug" ("Left: " ++ Tuple.first debugVals ++ ", right: " ++ Tuple.second debugVals)
+
+        _ =
+            Debug.log "width" (String.fromInt colWidth)
     in
     El.row
         [ El.centerX, El.centerY ]
