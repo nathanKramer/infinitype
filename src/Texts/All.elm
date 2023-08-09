@@ -4,6 +4,7 @@ import Dict
 import Texts.English10k as E10k
 import Texts.English1k as E1k
 import Texts.English200 as E200
+import Texts.Git as Git
 import Texts.JapaneseHiraganaCommon as J1
 import Texts.JapaneseKanjiCommon as J0
 import Texts.JapaneseKatakanaCommon as J2
@@ -21,6 +22,7 @@ texts =
         , ( J1.corpus.name, J1.corpus )
         , ( J2.corpus.name, J2.corpus )
         , ( Code.corpus.name, Code.corpus )
+        , ( Git.corpus.name, Git.corpus )
         , ( Quotes.corpus.name, Quotes.corpus )
         , ( S1k.corpus.name, S1k.corpus )
         ]
