@@ -8,6 +8,7 @@ import Texts.Git as Git
 import Texts.JapaneseHiraganaCommon as J1
 import Texts.JapaneseKanjiCommon as J0
 import Texts.JapaneseKatakanaCommon as J2
+import Texts.JapaneseCore2K as J3
 import Texts.MiscCode as Code
 import Texts.MonkeyTypeQuotes as Quotes
 import Texts.Spanish1k as S1k
@@ -21,6 +22,7 @@ texts =
         , ( J0.corpus.name, J0.corpus )
         , ( J1.corpus.name, J1.corpus )
         , ( J2.corpus.name, J2.corpus )
+        , ( J3.corpus.name, J3.corpus )
         , ( Code.corpus.name, Code.corpus )
         , ( Git.corpus.name, Git.corpus )
         , ( Quotes.corpus.name, Quotes.corpus )
