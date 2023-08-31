@@ -10,7 +10,7 @@ corpus =
 
 words : String
 words =
-"""
+    """
 する
 言う
 事
