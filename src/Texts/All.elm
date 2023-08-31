@@ -5,10 +5,10 @@ import Texts.English10k as E10k
 import Texts.English1k as E1k
 import Texts.English200 as E200
 import Texts.Git as Git
+import Texts.JapaneseCore2k as J3
 import Texts.JapaneseHiraganaCommon as J1
 import Texts.JapaneseKanjiCommon as J0
 import Texts.JapaneseKatakanaCommon as J2
-import Texts.JapaneseCore2K as J3
 import Texts.MiscCode as Code
 import Texts.MonkeyTypeQuotes as Quotes
 import Texts.Spanish1k as S1k

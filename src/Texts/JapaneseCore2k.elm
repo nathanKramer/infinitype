@@ -1,4 +1,4 @@
-module Texts.JapaneseCore2K exposing (corpus)
+module Texts.JapaneseCore2k exposing (corpus)
 
 
 corpus =
@@ -1982,5 +1982,5 @@ words =
 最先端
 掃除機
 生意気
-意地悪   
+意地悪
 """
