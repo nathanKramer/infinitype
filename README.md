@@ -1,6 +1,8 @@
 # Infinitype
 
-Delightful typing practice. 
+Delightful typing practice.
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/3cfd8e9d-47ec-478b-9d33-6d243b236409/deploy-status)](https://app.netlify.com/sites/sad-hawking-c8375f/deploys)
 
 ## Getting Started
 
