@@ -1,8 +1,13 @@
 // We must not crash
 
+const CORPUS_KEY = "infinitype:chosen_corpus";
+const DEFAULT_CORPUS = 6;
+const initialCorpus =
+  parseInt(localStorage.getItem(CORPUS_KEY)) || DEFAULT_CORPUS;
+
 const app = Elm.Main.init({
   node: document.getElementById("elm"),
-  flags: {},
+  flags: { corpus: initialCorpus },
 });
 const infinitype = document.getElementById("infinitype");
 
@@ -11,6 +16,10 @@ const interface = {
   commands: ["p"],
   prevent: ["ArrowLeft", "ArrowRight"],
 };
+
+app.ports.corpusChanged.subscribe(function (corpusIndex) {
+  localStorage.setItem(CORPUS_KEY, corpusIndex);
+});
 
 function notifyWithDefault(event) {
   event.preventDefault();
