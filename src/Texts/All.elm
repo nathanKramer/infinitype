@@ -12,7 +12,7 @@ import Texts.JapaneseKatakanaCommon as J2
 import Texts.MiscCode as Code
 import Texts.MonkeyTypeQuotes as Quotes
 import Texts.Spanish1k as S1k
-import Texts.Japanese6kSentences as J4
+import Texts.Japanese6kCoreSentences as J4
 
 
 texts =
