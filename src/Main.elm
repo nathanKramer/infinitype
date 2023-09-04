@@ -102,7 +102,7 @@ type alias Dimensions =
 
 randomWords : Int -> List String -> Generator (List String)
 randomWords count words =
-    Random.list count <| Random.uniform "lucky" words
+    Random.list (count - 1) <| Random.uniform "BUG" words
 
 
 initialData : AppData
