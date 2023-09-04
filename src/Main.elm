@@ -103,7 +103,11 @@ type alias Dimensions =
 
 randomWords : Int -> List String -> Generator (List String)
 randomWords count words =
-    Random.list (count - 1) <| Random.uniform "BUG" words
+    let
+        fallback =
+            Maybe.withDefault "BUG" (List.head words)
+    in
+    Random.list count <| Random.uniform fallback words
 
 
 initialData : AppData
