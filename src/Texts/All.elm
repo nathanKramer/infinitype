@@ -12,6 +12,7 @@ import Texts.JapaneseKatakanaCommon as J2
 import Texts.MiscCode as Code
 import Texts.MonkeyTypeQuotes as Quotes
 import Texts.Spanish1k as S1k
+import Texts.Japanese6kCoreSentences as J4
 
 
 texts =
@@ -23,8 +24,10 @@ texts =
         , ( J1.corpus.name, J1.corpus )
         , ( J2.corpus.name, J2.corpus )
         , ( J3.corpus.name, J3.corpus )
+        , ( J4.corpus.name, J4.corpus )
         , ( Code.corpus.name, Code.corpus )
         , ( Git.corpus.name, Git.corpus )
         , ( Quotes.corpus.name, Quotes.corpus )
         , ( S1k.corpus.name, S1k.corpus )
+
         ]
