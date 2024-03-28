@@ -39,7 +39,8 @@ makeCorpus words =
 
 
 type alias Flags =
-    {}
+    { corpus : Int
+    }
 
 
 type KeyPress
@@ -102,7 +103,11 @@ type alias Dimensions =
 
 randomWords : Int -> List String -> Generator (List String)
 randomWords count words =
-    Random.list (count - 1) <| Random.uniform "BUG" words
+    let
+        fallback =
+            Maybe.withDefault "BUG" (List.head words)
+    in
+    Random.list count <| Random.uniform fallback words
 
 
 initialData : AppData
@@ -172,10 +177,14 @@ drawMoreWords corpus =
 
 
 init : Flags -> ( Model, Cmd Msg )
-init _ =
+init flags =
+    let
+        initialCorpus =
+            getCorpus flags.corpus
+    in
     ( initialModel
     , Cmd.batch
-        [ drawMoreWords defaultCorpus
+        [ drawMoreWords initialCorpus
         , Task.perform GotViewport Dom.getViewport
         ]
     )
@@ -443,6 +452,7 @@ confirmSelection model =
     , Cmd.batch
         [ drawMoreWords newCorpus
         , refocus
+        , corpusChanged newIndex
         ]
     )
 
@@ -642,6 +652,13 @@ handleCommand cmd model =
 
         Reset ->
             reset model
+
+
+
+-- PORTS
+
+
+port corpusChanged : Int -> Cmd msg
 
 
 
@@ -970,15 +987,6 @@ renderTypingArea model screen bright =
             El.row
                 [ El.width widthAttr ]
                 (renderAppLetters (List.take charCount appData.typing))
-
-        debugVals =
-            ( List.length appData.typed |> String.fromInt, List.length appData.typing |> String.fromInt )
-
-        _ =
-            Debug.log "Debug" ("Left: " ++ Tuple.first debugVals ++ ", right: " ++ Tuple.second debugVals)
-
-        _ =
-            Debug.log "width" (String.fromInt colWidth)
     in
     El.row
         [ El.centerX, El.centerY ]

@@ -231,4 +231,6 @@ staging
 io
 core
 std
+async
+await
 """
