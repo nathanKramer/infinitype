@@ -31,7 +31,7 @@ type alias AppData =
     , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
-    , shim : Float
+    , animationShim : Float
     , screen : Maybe Dimensions
     , timeElapsed : Float
     }
@@ -88,7 +88,7 @@ initialData =
     , rawText = ""
     , stats = StatsData "0" "" ""
     , composingInput = False
-    , shim = 0
+    , animationShim = 0
     , screen = Nothing
     , corpusData = defaultCorpus
     , timeElapsed = 0.0

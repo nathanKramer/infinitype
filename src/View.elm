@@ -216,7 +216,7 @@ renderLetter keyResult bright appData =
     case keyResult of
         Correct key _ ->
             el
-                [ El.moveRight <| appData.shim
+                [ El.moveRight <| appData.animationShim
                 , Font.color <| dimmableText theme.typedFontColor
                 ]
             <|
@@ -224,7 +224,7 @@ renderLetter keyResult bright appData =
 
         Untyped key ->
             el
-                [ El.moveRight <| appData.shim
+                [ El.moveRight <| appData.animationShim
                 , Font.color <| dimmableText theme.fontColor
                 ]
             <|
@@ -232,7 +232,7 @@ renderLetter keyResult bright appData =
 
         Incorrect actual intended _ ->
             el
-                [ El.moveRight <| appData.shim
+                [ El.moveRight <| appData.animationShim
                 , Font.color <| dimmableText theme.incorrect
                 , El.below <| mistakeHint actual
                 ]

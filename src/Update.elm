@@ -202,7 +202,7 @@ handleInputReceived input appData =
             String.length input - String.length appData.inputValue
 
         newShim =
-            appData.shim + (theme.textSize * appData.corpusData.monosize * toFloat difference)
+            appData.animationShim + (theme.textSize * appData.corpusData.monosize * toFloat difference)
 
         untypedWords =
             String.split " " (String.join "" untypedText)
@@ -220,7 +220,7 @@ handleInputReceived input appData =
                 { appData
                     | typed = typed
                     , typing = typing
-                    , shim = newShim
+                    , animationShim = newShim
                     , rawText = ""
                     , inputValue = input
                 }
@@ -486,26 +486,26 @@ animate : Float -> AppData -> AppData
 animate dt appData =
     let
         typedKeysAheadOfCursor =
-            abs appData.shim / (theme.textSize * appData.corpusData.monosize)
+            abs appData.animationShim / (theme.textSize * appData.corpusData.monosize)
 
         speed =
             typedKeysAheadOfCursor / 4
 
         incrementalShim =
-            if appData.shim < 0 then
-                appData.shim + (dt * speed)
+            if appData.animationShim < 0 then
+                appData.animationShim + (dt * speed)
 
-            else if appData.shim > 0 then
-                appData.shim - (dt * speed)
+            else if appData.animationShim > 0 then
+                appData.animationShim - (dt * speed)
 
             else
-                appData.shim
+                appData.animationShim
 
         updatedShim =
-            if appData.shim > 0 && incrementalShim < 0 then
+            if appData.animationShim > 0 && incrementalShim < 0 then
                 0
 
-            else if appData.shim < 0 && incrementalShim > 0 then
+            else if appData.animationShim < 0 && incrementalShim > 0 then
                 0
 
             else
@@ -518,7 +518,7 @@ animate dt appData =
             else
                 appData.timeElapsed
     in
-    { appData | shim = updatedShim, timeElapsed = updatedTimeElapsed }
+    { appData | animationShim = updatedShim, timeElapsed = updatedTimeElapsed }
 
 
 handleCommand : CommandName -> Model -> ( Model, Cmd Msg )
