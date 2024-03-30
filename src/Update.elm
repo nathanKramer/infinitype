@@ -11,10 +11,7 @@ import Corpus
         )
 import Dict
 import List.Extra as LE
-import Ports exposing (corpusChanged)
-import Regex
-import Set
-import State
+import Model
     exposing
         ( AppData
         , CommandName(..)
@@ -28,6 +25,9 @@ import State
         , reset
         , unwrapModel
         )
+import Ports exposing (corpusChanged)
+import Regex
+import Set
 import String as S
 import Texts.All exposing (texts)
 import Theme exposing (theme)

@@ -1,4 +1,4 @@
-module State exposing (..)
+module Model exposing (..)
 
 import Browser.Dom as Dom exposing (Viewport)
 import Corpus

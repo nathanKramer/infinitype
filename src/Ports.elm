@@ -2,7 +2,7 @@ port module Ports exposing (..)
 
 import Browser.Events exposing (onAnimationFrameDelta, onKeyDown, onResize)
 import Json.Decode as D
-import State exposing (CommandName(..), Model(..), Msg(..))
+import Model exposing (CommandName(..), Model(..), Msg(..))
 import Time
 
 

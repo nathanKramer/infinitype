@@ -1,4 +1,4 @@
-module Rendering exposing (..)
+module View exposing (..)
 
 import Browser
 import Dict
@@ -9,7 +9,7 @@ import Element.Input as Input
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Json.Decode as D
-import State exposing (AppData, Dimensions, KeyPress(..), Model(..), Msg(..), unwrapModel)
+import Model exposing (AppData, Dimensions, KeyPress(..), Model(..), Msg(..), unwrapModel)
 import Texts.All exposing (texts)
 import Theme exposing (theme)
 import Translations.English as UserText

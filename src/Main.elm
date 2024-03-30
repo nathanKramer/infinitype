@@ -1,16 +1,16 @@
 module Main exposing (..)
 
 import Browser
-import Ports exposing (subscriptions)
-import Rendering exposing (view)
-import State
+import Model
     exposing
         ( Flags
         , Model(..)
         , Msg(..)
         , init
         )
+import Ports exposing (subscriptions)
 import Update exposing (update)
+import View exposing (view)
 
 
 main : Program Flags Model Msg
