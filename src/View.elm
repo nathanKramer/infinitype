@@ -420,6 +420,8 @@ renderCommandPalette model screen =
             itemsList
 
 
+{-| This is for japanese input methods and other fancy language input methods
+-}
 renderComposingHelp : AppData -> Element msg
 renderComposingHelp appData =
     let
