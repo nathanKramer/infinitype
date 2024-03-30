@@ -410,6 +410,7 @@ renderCommandPalette model screen =
             el
                 [ El.centerX
                 , Font.color (color name)
+                , Font.size 40
                 ]
                 (El.text name)
     in
