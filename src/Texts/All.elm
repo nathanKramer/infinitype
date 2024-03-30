@@ -1,18 +1,22 @@
 module Texts.All exposing (..)
 
 import Dict
+import Texts.Bigrams as Bigrams
 import Texts.English10k as E10k
 import Texts.English1k as E1k
 import Texts.English200 as E200
 import Texts.Git as Git
 import Texts.JapaneseCore2k as J3
+import Texts.JapaneseCore6kSentences as J4
 import Texts.JapaneseHiraganaCommon as J1
 import Texts.JapaneseKanjiCommon as J0
 import Texts.JapaneseKatakanaCommon as J2
 import Texts.MiscCode as Code
 import Texts.MonkeyTypeQuotes as Quotes
 import Texts.Spanish1k as S1k
-import Texts.JapaneseCore6kSentences as J4
+import Texts.Trigrams as Trigrams
+
+
 texts =
     Dict.fromList
         [ ( E200.corpus.name, E200.corpus )
@@ -27,5 +31,6 @@ texts =
         , ( Git.corpus.name, Git.corpus )
         , ( Quotes.corpus.name, Quotes.corpus )
         , ( S1k.corpus.name, S1k.corpus )
-
+        , ( Bigrams.corpus.name, Bigrams.corpus )
+        , ( Trigrams.corpus.name, Trigrams.corpus )
         ]

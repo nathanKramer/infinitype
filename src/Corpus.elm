@@ -19,7 +19,7 @@ defaultCorpus =
 
 wordBuffer : Int
 wordBuffer =
-    10
+    20
 
 
 makeCorpus : String -> List String
