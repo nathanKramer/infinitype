@@ -1,18 +1,21 @@
 module Model exposing (..)
 
+import Array
 import Browser.Dom as Dom exposing (Viewport)
 import Corpus
     exposing
         ( Corpus
         , defaultCorpus
-        , getCorpus
         , makeCorpus
         , randomWords
         , wordBuffer
         )
+import Dict exposing (Dict)
+import List.Extra as LE
 import Random
 import Set exposing (Set)
 import Task
+import Texts.All exposing (texts)
 import Time
 
 
@@ -31,6 +34,7 @@ type alias AppData =
     , composingInput : Bool
     , heldKeys : Set String
     , corpusData : Corpus
+    , mistakesCorpus : Corpus
     , animationShim : Float
     , screen : Maybe Dimensions
     , timeElapsed : Float
@@ -59,8 +63,11 @@ type alias StatsData =
     }
 
 
-type KeyPress
+type
+    KeyPress
+    -- ActualChar, Time
     = Correct String Float
+      -- ActualChar, IntendedChar, Time
     | Incorrect String String Float
     | Untyped String
 
@@ -90,6 +97,11 @@ initialData =
     , composingInput = False
     , animationShim = 0
     , screen = Nothing
+    , mistakesCorpus =
+        { name = "Mistakes"
+        , words = ""
+        , monosize = 0.5
+        }
     , corpusData = defaultCorpus
     , timeElapsed = 0.0
     }
@@ -105,7 +117,7 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
         initialCorpus =
-            getCorpus flags.corpus
+            getCorpus initialModel flags.corpus
     in
     ( initialModel
     , Cmd.batch
@@ -168,3 +180,44 @@ drawMoreWords corpus =
         |> makeCorpus
         |> randomWords wordBuffer
         |> Random.generate RandomWords
+
+
+getAllTexts : Model -> Dict String Corpus
+getAllTexts model =
+    Dict.insert "Mistakes"
+        (unwrapModel model).mistakesCorpus
+        texts
+
+
+indexedCorpusList : Model -> List ( Int, ( String, Corpus ) )
+indexedCorpusList model =
+    let
+        itemsList =
+            Dict.toList
+                (getAllTexts model)
+
+        arrayOfTexts =
+            itemsList |> Array.fromList
+
+        items =
+            Array.toIndexedList arrayOfTexts
+    in
+    items
+
+
+getCorpus : Model -> Int -> Corpus
+getCorpus model idx =
+    let
+        findFn : ( Int, ( String, Corpus ) ) -> Bool
+        findFn ( i, ( _, label ) ) =
+            i == idx
+
+        currentCorpus =
+            case LE.find findFn (indexedCorpusList model) of
+                Just ( _, ( _, corpus ) ) ->
+                    corpus
+
+                Nothing ->
+                    defaultCorpus
+    in
+    currentCorpus

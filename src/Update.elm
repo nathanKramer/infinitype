@@ -5,8 +5,6 @@ import Corpus
     exposing
         ( Corpus
         , defaultCorpus
-        , getCorpus
-        , indexedCorpusList
         , wordBuffer
         )
 import Dict
@@ -19,6 +17,9 @@ import Model
         , Model(..)
         , Msg(..)
         , drawMoreWords
+        , getAllTexts
+        , getCorpus
+        , indexedCorpusList
         , mapModel
         , noOpUpdate
         , refocus
@@ -29,7 +30,6 @@ import Ports exposing (corpusChanged)
 import Regex
 import Set
 import String as S
-import Texts.All exposing (texts)
 import Theme exposing (theme)
 
 
@@ -178,18 +178,21 @@ handleInputReceived input appData =
         keystrokes =
             List.map2 Tuple.pair (String.split "" input) matchingChars
 
+        hittingBackspace =
+            String.length input < List.length appData.typed
+
+        -- Should be one new typed character
+        newChars =
+            List.drop (List.length appData.typed) keystrokes
+
+        mappedChars =
+            List.map (resultForKey appData.timeElapsed) newChars
+
         typed =
-            if String.length input < List.length appData.typed then
+            if hittingBackspace then
                 List.take (String.length input) appData.typed
 
             else
-                let
-                    newChars =
-                        List.drop (List.length appData.typed) keystrokes
-
-                    mappedChars =
-                        List.map (resultForKey appData.timeElapsed) newChars
-                in
                 List.concat [ appData.typed, mappedChars ]
 
         untypedText =
@@ -210,6 +213,67 @@ handleInputReceived input appData =
         raw =
             String.dropLeft (String.length appData.inputValue) input
 
+        shouldDrawMoreWords =
+            List.length untypedWords < wordBuffer
+
+        cmds =
+            if shouldDrawMoreWords then
+                [ drawMoreWords appData.corpusData ]
+
+            else
+                []
+
+        unwrapMistake keyPress =
+            case keyPress of
+                Incorrect _ intended _ ->
+                    intended /= " "
+
+                _ ->
+                    False
+
+        currentWord =
+            let
+                unTypedString =
+                    appData.typing
+                        |> List.map getKey
+                        |> String.join ""
+                        |> String.split " "
+                        |> List.head
+
+                typedString =
+                    appData.typed
+                        |> List.map getKey
+                        |> String.join ""
+                        |> String.split " "
+                        |> List.reverse
+                        |> List.head
+
+                theWord =
+                    Maybe.withDefault "" typedString
+                        ++ Maybe.withDefault "" unTypedString
+            in
+            theWord
+
+        updatedCorpus corpus =
+            let
+                corpusWords =
+                    String.split "\n" appData.mistakesCorpus.words
+
+                deduped =
+                    LE.unique (currentWord :: corpusWords) |> String.join "\n"
+            in
+            { corpus | words = deduped }
+
+        newMistakesCorpus =
+            if
+                mappedChars
+                    |> List.any unwrapMistake
+            then
+                updatedCorpus appData.mistakesCorpus
+
+            else
+                appData.mistakesCorpus
+
         newData =
             if appData.composingInput then
                 { appData
@@ -221,19 +285,10 @@ handleInputReceived input appData =
                     | typed = typed
                     , typing = typing
                     , animationShim = newShim
+                    , mistakesCorpus = newMistakesCorpus
                     , rawText = ""
                     , inputValue = input
                 }
-
-        shouldDrawMoreWords =
-            List.length untypedWords < wordBuffer
-
-        cmds =
-            if shouldDrawMoreWords then
-                [ drawMoreWords appData.corpusData ]
-
-            else
-                []
     in
     ( newData, cmds )
 
@@ -276,8 +331,11 @@ incrementCorpus delta model =
         findFn ( _, ( _, label ) ) =
             label.name == (unwrapModel model).corpusData.name
 
+        corpusList =
+            indexedCorpusList model
+
         currentIndex =
-            case LE.find findFn indexedCorpusList of
+            case LE.find findFn corpusList of
                 Just ( idx, _ ) ->
                     idx
 
@@ -285,9 +343,9 @@ incrementCorpus delta model =
                     0
 
         newIndex =
-            modBy (List.length indexedCorpusList) (currentIndex + delta)
+            modBy (List.length corpusList) (currentIndex + delta)
     in
-    ( mapModel (\appData -> { appData | corpusData = getCorpus newIndex }) model, Cmd.none )
+    ( mapModel (\appData -> { appData | corpusData = getCorpus model newIndex }) model, Cmd.none )
 
 
 toggleModifier : String -> Model -> ( Model, Cmd Msg )
@@ -402,7 +460,7 @@ confirmSelection model =
 
         itemsList =
             Dict.toList
-                texts
+                (getAllTexts model)
 
         itemsArr =
             itemsList |> Array.fromList

@@ -9,8 +9,7 @@ import Element.Input as Input
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Json.Decode as D
-import Model exposing (AppData, Dimensions, KeyPress(..), Model(..), Msg(..), unwrapModel)
-import Texts.All exposing (texts)
+import Model exposing (AppData, Dimensions, KeyPress(..), Model(..), Msg(..), getAllTexts, unwrapModel)
 import Theme exposing (theme)
 import Translations.English as UserText
 import Update exposing (changeListener)
@@ -404,7 +403,7 @@ renderCommandPalette model screen =
 
         itemsList =
             Dict.toList
-                texts
+                (getAllTexts model)
 
         selectItem ( name, _ ) =
             el
