@@ -49,9 +49,17 @@ decodeKey =
     D.field "key" D.string
 
 
+decodeIsComposing : D.Decoder Bool
+decodeIsComposing =
+    D.oneOf
+        [ D.field "isComposing" D.bool
+        , D.succeed False
+        ]
+
+
 keyDownListener : D.Decoder Msg
 keyDownListener =
-    D.map KeyDown decodeKey
+    D.map2 KeyDown decodeKey decodeIsComposing
 
 
 keyUpListener : D.Decoder Msg

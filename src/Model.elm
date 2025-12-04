@@ -45,7 +45,7 @@ type Msg
     = InputReceived String
     | Command CommandName
     | ComposingInput Bool
-    | KeyDown String
+    | KeyDown String Bool -- key, isComposing (for IME support)
     | KeyReleased String
     | RandomWords (List String)
     | Frame Float
