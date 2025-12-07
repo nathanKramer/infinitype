@@ -74,8 +74,8 @@ update msg model =
                 |> mapModel (\appData -> { appData | heldKeys = Set.remove key appData.heldKeys })
                 |> noOpUpdate
 
-        KeyDown key isComposing ->
-            handleKeyDown key isComposing model
+        KeyDown key ->
+            handleKeyDown key model
 
         RandomWords words ->
             let
@@ -502,48 +502,42 @@ confirmSelection model =
     )
 
 
-handleKeyDown : String -> Bool -> Model -> ( Model, Cmd Msg )
-handleKeyDown key isComposing model =
-    -- Ignore keydown events during IME composition (e.g., Japanese input)
-    -- The Enter key during composition confirms the IME selection, not app actions
-    if isComposing then
-        ( model, Cmd.none )
+handleKeyDown : String -> Model -> ( Model, Cmd Msg )
+handleKeyDown key model =
+    case model of
+        CommandPalette _ ->
+            case key of
+                "Enter" ->
+                    confirmSelection model
 
-    else
-        case model of
-            CommandPalette _ ->
-                case key of
-                    "Enter" ->
-                        confirmSelection model
+                "Escape" ->
+                    ( Typing (unwrapModel model), Cmd.none )
 
-                    "Escape" ->
-                        ( Typing (unwrapModel model), Cmd.none )
+                "ArrowUp" ->
+                    incrementCorpus -1 model
 
-                    "ArrowUp" ->
-                        incrementCorpus -1 model
+                "k" ->
+                    incrementCorpus -1 model
 
-                    "k" ->
-                        incrementCorpus -1 model
+                "ArrowDown" ->
+                    incrementCorpus 1 model
 
-                    "ArrowDown" ->
-                        incrementCorpus 1 model
+                "j" ->
+                    incrementCorpus 1 model
 
-                    "j" ->
-                        incrementCorpus 1 model
+                _ ->
+                    ( model, Cmd.none )
 
-                    _ ->
-                        ( model, Cmd.none )
+        _ ->
+            case key of
+                "Enter" ->
+                    togglePause model
 
-            _ ->
-                case key of
-                    "Enter" ->
-                        togglePause model
+                "Escape" ->
+                    commandPalette model
 
-                    "Escape" ->
-                        commandPalette model
-
-                    _ ->
-                        ( model, Cmd.none )
+                _ ->
+                    ( model, Cmd.none )
 
 
 animate : Float -> AppData -> AppData
